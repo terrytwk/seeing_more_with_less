@@ -1,0 +1,16 @@
+numpy
+scipy
+opencv-python
+Pillow
+torch
+torchvision
+opt-einsum
+hdf5storage
+matplotlib
+pycocotools
+pandas
+seaborn
+tqdm
+scikit-image
+geopandas
+pyyaml
