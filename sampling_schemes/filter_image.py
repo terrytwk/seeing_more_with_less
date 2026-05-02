@@ -143,7 +143,7 @@ def main():
         "--model_index",
         default=0,
         type=int,
-        help="Models of different sample percentage. Options are: 0-10 -? [3%, 10%, 15%, 20%, 30%, ... 90]",
+        help="Models of different sample percentage. Options are: 0-10 -> [3%%, 10%%, 15%%, 20%%, 30%%, ... 90%%]",
     )
     parser.add_argument(
         "--index",
@@ -203,7 +203,7 @@ def main():
 #    global num_concurrent_img_filters; num_concurrent_img_filters = 6
     global processing_buffer; processing_buffer = args.batchsize
     global old_database_path; old_database_path = args.path
-    global new_database_path; new_database_path = os.path.join("/home/projects/bagon/userh/data/",  args.outfolder+'_'+str(field_of_view_in_degrees)+'d_'+str(model_sample_percentage[args.model_index])+'perc', ['Constant', 'Variable'][prefix_idx])
+    global new_database_path; new_database_path = os.path.join(args.outfolder+'_'+str(field_of_view_in_degrees)+'d_'+str(model_sample_percentage[args.model_index])+'perc', ['Constant', 'Variable'][prefix_idx])
 
     prefix_idx = type_strs.index(args.type)
     mat_prefix = ['const', 'var'][prefix_idx]
