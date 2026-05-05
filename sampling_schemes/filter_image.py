@@ -180,6 +180,16 @@ def main():
         type=int,
         help="Number of pixels to shift the fixation point in the vertical direction from the image center",
     )
+    parser.add_argument(
+        "--fixation_json_root",
+        default=None,
+        help="Directory containing fixation-point JSONs. Defaults to <path>/filtered/fixation_points.",
+    )
+    parser.add_argument(
+        "--fixation_json_only",
+        action="store_true",
+        help="Use only fixation points from JSON when a JSON file is present; otherwise fall back to center fixation.",
+    )
 
     args = parser.parse_args()
     if args.fov_index not in [0, 1, 2]:
@@ -225,7 +235,10 @@ def main():
         obj_ids = []
         obj_ids.append(999)
         if args.type != 'const':
-            json_info_filename = os.path.join(old_database_path, 'filtered', 'fixation_points', str(Path(images[i]).with_suffix('.json')))
+            fixation_json_root = args.fixation_json_root
+            if fixation_json_root is None:
+                fixation_json_root = os.path.join(old_database_path, 'filtered', 'fixation_points')
+            json_info_filename = os.path.join(fixation_json_root, str(Path(images[i]).with_suffix('.json')))
             if os.path.exists(json_info_filename):
                 fp_json_file = open(json_info_filename)
                 json_data = json.load(fp_json_file)
@@ -234,6 +247,10 @@ def main():
                 fp_json_file.close()
             else:
                 objects_info = []
+
+            if objects_info and args.fixation_json_only:
+                fixation_points = []
+                obj_ids = []
 
             if objects_info:
                 for obj_info in objects_info:

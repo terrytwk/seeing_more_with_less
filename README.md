@@ -213,8 +213,35 @@ python sampling_schemes/filter_image.py \
 | `--pool_threads` | Number of parallel worker threads | `1` |
 | `--fp_shift_x` | Horizontal fixation point shift from center (px) | `0` |
 | `--fp_shift_y` | Vertical fixation point shift from center (px) | `0` |
+| `--fixation_json_root` | Directory containing per-image fixation JSONs | `<path>/filtered/fixation_points` |
+| `--fixation_json_only` | Use JSON fixations only when present, instead of also emitting center fixation | `False` |
 
 > **Note:** The `.mat` sampling parameter file must be accessible to `utils.py`. Update the path in `utils.py:read_mat()` to point to your local copy of the generated `.mat` file.
+
+#### Optional: DeepGaze IIE Fixations
+
+Generate saliency-based fixation JSONs with DeepGaze IIE, then pass them to the sampler:
+
+```bash
+python saliency/deepgaze/predict_fixations.py \
+    --path ./data/raw \
+    --num_fixations 1 \
+    --device auto \
+    --saliency_overlay_root ./data/raw/filtered/deepgaze_saliency_overlays
+
+python sampling_schemes/filter_image.py \
+    --model_index 0 \
+    --fov_index 1 \
+    --type var \
+    --path ./data/raw \
+    --outfolder ./filtered_output_deepgaze \
+    --fixation_json_root ./data/raw/filtered/fixation_points \
+    --fixation_json_only \
+    --batchsize 9999 \
+    --index 1
+```
+
+See `saliency/deepgaze/README.md` for saliency map and raw probability outputs.
 
 ---
 
