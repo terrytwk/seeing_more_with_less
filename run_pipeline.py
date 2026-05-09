@@ -3,20 +3,17 @@
 Optimized pipeline: all fixation variants, parallel filter execution, reports every batch.
 """
 import argparse
-import io
 import json
 import subprocess
-import sys
 import time
-from collections import defaultdict
 from pathlib import Path
 
 import cv2
 import numpy as np
 from PIL import Image
-from pycocotools.coco import COCO
-from pycocotools.cocoeval import COCOeval
 
+from evaluation.object_detection import ObjectDetectionEvaluation
+from evaluation.vqa import VQAEvaluation
 from fixation.common import dataset_name_from_path, default_fixation_root
 
 FOV_DEG = 30
@@ -71,44 +68,12 @@ def find_filtered_image(filt_dir, stem):
     return matches[0] if matches else None
 
 
-def vqa_accuracy(predicted, answers):
-    return min(sum(1 for a in answers if a["answer"].lower() == predicted.lower()) / 3.0, 1.0)
-
-
-def print_table(n_images, vqa_accs, det_preds, coco_gt):
+def print_table(n_images, vqa_evaluation, detection_evaluation):
     print(f"\n{'='*64}", flush=True)
     print(f"  Results after {n_images} images  [{time.strftime('%H:%M:%S')}]", flush=True)
     print(f"{'='*64}", flush=True)
-    print(f"\n  VQA Accuracy — ViLT on VQAv2")
-    print(f"  {'Fixation':<22} {'Accuracy':>10}  {'N questions':>12}")
-    print(f"  {'-'*46}")
-    for v in VARIANTS:
-        accs = vqa_accs[v]
-        if accs:
-            print(f"  {v:<22} {np.mean(accs)*100:>9.2f}%  {len(accs):>12}")
-        else:
-            print(f"  {v:<22} {'—':>10}  {'0':>12}")
-
-    print(f"\n  Detection mAP — DETR on COCO val2017")
-    print(f"  {'Fixation':<22} {'mAP@.5:.95':>10}  {'Detections':>12}")
-    print(f"  {'-'*46}")
-    for v in VARIANTS:
-        preds = det_preds[v]
-        if preds:
-            try:
-                coco_dt = coco_gt.loadRes(preds)
-                ev = COCOeval(coco_gt, coco_dt, "bbox")
-                ev.params.imgIds = list({p["image_id"] for p in preds})
-                ev.evaluate()
-                ev.accumulate()
-                old = sys.stdout; sys.stdout = io.StringIO()
-                ev.summarize()
-                sys.stdout = old
-                print(f"  {v:<22} {ev.stats[0]*100:>9.2f}%  {len(preds):>12}")
-            except Exception:
-                print(f"  {v:<22} {'(too few yet)':>10}  {len(preds):>12}")
-        else:
-            print(f"  {v:<22} {'—':>10}  {'0':>12}")
+    vqa_evaluation.print_report()
+    detection_evaluation.print_report()
     print(f"\n{'='*64}\n", flush=True)
 
 
@@ -144,22 +109,11 @@ def main():
         "deepgaze":    str(default_fixation_root(images_dir, "deepgaze")),
     }
 
-    print("Loading COCO annotations...", flush=True)
-    coco_gt = COCO(args.annotations)
-
     print("Loading VQA data...", flush=True)
-    with open(args.vqa_questions) as f:
-        vqa_q = json.load(f)
-    with open(args.vqa_annotations) as f:
-        vqa_ann = json.load(f)
-    answer_lookup = {a["question_id"]: a["answers"] for a in vqa_ann["annotations"]}
-    questions_by_image = defaultdict(list)
-    for q in vqa_q["questions"]:
-        questions_by_image[q["image_id"]].append({
-            "question_id": q["question_id"],
-            "question": q["question"],
-            "answers": answer_lookup.get(q["question_id"], []),
-        })
+    vqa_evaluation = VQAEvaluation(args.vqa_questions, args.vqa_annotations, VARIANTS)
+
+    print("Loading COCO annotations...", flush=True)
+    detection_evaluation = ObjectDetectionEvaluation(args.annotations, VARIANTS)
 
     print("Generating random fixation JSONs...", flush=True)
     subprocess.run([
@@ -196,8 +150,6 @@ def main():
         "const":           ("const", out / "const",           None,                    False),
     }
 
-    vqa_accs  = defaultdict(list)
-    det_preds = defaultdict(list)
     n_processed = 0
 
     for batch_start in range(0, len(images), args.batch_size):
@@ -266,25 +218,17 @@ def main():
                 with Image.open(filt_path) as img:
                     arr = np.asarray(img.convert("RGB"))
 
-                for det in detr.predict(arr):
-                    det_preds[vname].append({
-                        "image_id": image_id,
-                        "category_id": det["label"],
-                        "bbox": det["bbox"],
-                        "score": det["score"],
-                    })
-                for q in questions_by_image.get(image_id, []):
-                    predicted = vilt.predict(arr, q["question"])
-                    vqa_accs[vname].append(vqa_accuracy(predicted, q["answers"]))
+                detection_evaluation.add_predictions(vname, image_id, detr.predict(arr))
+                vqa_evaluation.add_image_results(vname, image_id, arr, vilt)
 
         n_processed += len(batch)
-        print_table(n_processed, vqa_accs, det_preds, coco_gt)
+        print_table(n_processed, vqa_evaluation, detection_evaluation)
 
         with open(results_dir / "partial_results.json", "w") as f:
             json.dump({
                 "n_images": n_processed,
-                "vqa":  {k: {"accuracy": float(np.mean(v)), "n": len(v)} for k, v in vqa_accs.items() if v},
-                "det":  {k: {"n_detections": len(v)} for k, v in det_preds.items()},
+                "vqa": vqa_evaluation.to_json(),
+                "det": detection_evaluation.to_json(),
             }, f, indent=2)
 
 

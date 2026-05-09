@@ -119,11 +119,15 @@ This repository contains the experiment code accompanying the paper. Our experim
 │       ├── vilt_runner.py
 │       └── run_vqa.py
 │
+├── evaluation/                  # Pipeline evaluation aggregation (new)
+│   ├── object_detection.py
+│   └── vqa.py
+│
 ├── scripts/                     # One-off utilities and visualization helpers
 │   ├── download_coco.py
 │   └── visualize_example.py
 │
-├── run_pipeline.py              # End-to-end pipeline (new)
+├── run_pipeline.py              # End-to-end pipeline orchestration (new)
 ├── COMMANDS.md                   # Reproduction command sheet
 ├── CHANGES.md                    # Summary of fork changes
 ├── requirements.txt
@@ -555,7 +559,7 @@ Reports per-question soft accuracy (standard VQA metric: min(annotator agreement
 
 ## End-to-End Pipeline
 
-`run_pipeline.py` ties the full workflow together: generates fixation JSONs for all strategies, runs all filter variants in parallel, runs DETR and ViLT inference, and prints a results table after every batch.
+`run_pipeline.py` ties the full workflow together: generates fixation JSONs for all strategies, runs all filter variants in parallel, runs DETR and ViLT inference, and prints a results table after every batch. Evaluation aggregation lives in `evaluation/object_detection.py` and `evaluation/vqa.py`.
 
 ```bash
 python run_pipeline.py \
