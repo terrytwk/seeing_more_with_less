@@ -28,6 +28,20 @@ def log(msg):
     print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] {msg}")
 
 
+def matlab_round(x):
+    """Match MATLAB round: halves round away from zero."""
+    x = np.asarray(x)
+    return np.sign(x) * np.floor(np.abs(x) + 0.5)
+
+
+def stable_floor(x, tol=1e-9):
+    """Floor while snapping values that only differ from an integer by FP noise."""
+    x = np.asarray(x)
+    nearest = np.rint(x)
+    x = np.where(np.abs(x - nearest) < tol, nearest, x)
+    return np.floor(x)
+
+
 # ---------------------------------------------------------------------------
 # Port of extract_model_parameters.m
 # ---------------------------------------------------------------------------
@@ -110,10 +124,10 @@ def _build_xlim_ylim(circles_cntr_xy, circles_radii, seconds_per_pixel, gauss_ha
         cx = circles_cntr_xy[i, 0] / seconds_per_pixel
         cy = circles_cntr_xy[i, 1] / seconds_per_pixel
 
-        cx_lo = int(np.floor(cx - gauss_half_sup + 0.5))
-        cx_hi = int(np.floor(cx + gauss_half_sup + 0.5))
-        cy_lo = int(np.floor(cy - gauss_half_sup + 0.5))
-        cy_hi = int(np.floor(cy + gauss_half_sup + 0.5))
+        cx_lo = int(stable_floor(cx - gauss_half_sup + 0.5))
+        cx_hi = int(stable_floor(cx + gauss_half_sup + 0.5))
+        cy_lo = int(stable_floor(cy - gauss_half_sup + 0.5))
+        cy_hi = int(stable_floor(cy + gauss_half_sup + 0.5))
 
         sz = 2 * rf_roi_half_sz + 1
         g  = 2 * gauss_half_sup + 1
@@ -144,8 +158,8 @@ def _build_gaussian_filters(circles_cntr_xy, circles_radii, seconds_per_pixel, g
         cy = circles_cntr_xy[i, 1] / seconds_per_pixel
         sigma2 = (circles_radii[i] / seconds_per_pixel) ** 2
 
-        cx_c = int(np.floor(cx + 0.5))
-        cy_c = int(np.floor(cy + 0.5))
+        cx_c = int(stable_floor(cx + 0.5))
+        cy_c = int(stable_floor(cy + 0.5))
         xs = np.arange(cx_c - gauss_half_sup, cx_c + gauss_half_sup + 1, dtype=np.float64)
         ys = np.arange(cy_c - gauss_half_sup, cy_c + gauss_half_sup + 1, dtype=np.float64)
         X, Y = np.meshgrid(xs, ys)
@@ -207,8 +221,8 @@ def generic_inverted_pyramid_model(model_index, fov_index,
     tmp_mask = np.zeros((sz, sz), dtype=np.uint8)
 
     # Convert arc-second coords -> 0-based pixel indices (row=y, col=x)
-    rows_f = np.clip(np.round(cntr[:, 1] / spp + half_sz).astype(int), 0, sz - 1)
-    cols_f = np.clip(np.round(cntr[:, 0] / spp + half_sz).astype(int), 0, sz - 1)
+    rows_f = np.clip(matlab_round(cntr[:, 1] / spp + half_sz).astype(int), 0, sz - 1)
+    cols_f = np.clip(matlab_round(cntr[:, 0] / spp + half_sz).astype(int), 0, sz - 1)
     tmp_mask[rows_f, cols_f] = 1
 
     # bwmorph(mask, 'close') = morphological closing with 3×3 ones
@@ -231,7 +245,7 @@ def generic_inverted_pyramid_model(model_index, fov_index,
         if odd_fl:
             odd_fl = False
         else:
-            theta  = theta + round(360.0 / n_circ / 2.0)
+            theta  = theta + int(matlab_round(360.0 / n_circ / 2.0))
             odd_fl = True
         x = concentric_r * np.cos(np.radians(theta))
         y = concentric_r * np.sin(np.radians(theta))
@@ -255,7 +269,7 @@ def generic_inverted_pyramid_model(model_index, fov_index,
     # ------------------------------------------------------------------
     log("Building constant resolution cell layout ...")
     c_r     = model['const_rf_radius']
-    n_half  = int(round(model['const_half_num_of_uniform_rf_cells']))
+    n_half  = int(matlab_round(model['const_half_num_of_uniform_rf_cells']))
 
     c_cntr  = np.array([[0.0, 0.0]])
     c_radii = np.array([c_r])
@@ -268,7 +282,7 @@ def generic_inverted_pyramid_model(model_index, fov_index,
         if odd_fl:
             odd_fl = False
         else:
-            theta  = theta + round(360.0 / n_circ / 2.0)
+            theta  = theta + int(matlab_round(360.0 / n_circ / 2.0))
             odd_fl = True
         x = concentric_r * np.cos(np.radians(theta))
         y = concentric_r * np.sin(np.radians(theta))

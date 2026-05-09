@@ -51,7 +51,7 @@ else
     if model.fov_in_degrees == 30
         sample_ratios = [7538, 32118, 47990, 65243, 97930, 132464, 163970, 200584, 233223, 266048, 303137]./model.fullres_samples;
     else
-        samle_ratios = [9027, 41091, 62688, 86952, 136021, 187440, 237089, 296390, 349292, 406890, 472279]./model.fullres_samples;   
+        sample_ratios = [9027, 41091, 62688, 86952, 136021, 187440, 237089, 296390, 349292, 406890, 472279]./model.fullres_samples;   
     end
 end
 ecc_rf_factors = [0.05, 0.0195, 0.0150, 0.0122, 0.0092, 0.0074, 0.0063, 0.0054, 0.0048, 0.0043, 0.00385];
@@ -116,5 +116,4 @@ const_rf_half_num_cells_est_splinefunc = spline(sample_ratios, const_half_num_ce
 model.const_half_num_of_uniform_rf_cells = fnval(const_rf_half_num_cells_est_splinefunc, model.sample_ratio);
 
 model.const_max_out_img_sz = 1600; % 1600x1600
-
 
