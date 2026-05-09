@@ -1,11 +1,17 @@
 #!/usr/bin/env python3
 import argparse
 import json
-import os
+import sys
 from pathlib import Path
 
 import numpy as np
 from PIL import Image
+
+try:
+    from fixation.common import default_fixation_root
+except ImportError:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+    from fixation.common import default_fixation_root
 
 IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".bmp", ".webp", ".tif", ".tiff", ".avif"}
 
@@ -33,7 +39,7 @@ def main():
     parser.add_argument(
         "--outfolder",
         default=None,
-        help="Folder for fixation JSONs. Defaults to <path>/filtered/fixation_points.",
+        help="Folder for fixation JSONs. Defaults to outputs/fixations/<dataset>/random.",
     )
     parser.add_argument("--num_fixations", type=int, default=1, help="Number of fixation points per image.")
     parser.add_argument("--seed", type=int, default=None, help="Random seed for reproducibility.")
@@ -43,7 +49,7 @@ def main():
     rng = np.random.default_rng(args.seed)
 
     image_root = Path(args.path)
-    output_root = Path(args.outfolder) if args.outfolder else image_root / "filtered" / "fixation_points"
+    output_root = Path(args.outfolder) if args.outfolder else default_fixation_root(image_root, "random")
 
     images = list(iter_images(image_root))
     if not images:

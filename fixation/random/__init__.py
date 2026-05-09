@@ -1,0 +1,1 @@
+"""Random fixation point generation."""

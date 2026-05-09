@@ -1,11 +1,18 @@
 #!/usr/bin/env python3
 import argparse
 import json
+import sys
 from pathlib import Path
 
 import cv2
 import numpy as np
 from PIL import Image
+
+try:
+    from fixation.common import default_fixation_root
+except ImportError:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+    from fixation.common import default_fixation_root
 
 IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".bmp", ".webp", ".tif", ".tiff", ".avif"}
 
@@ -69,7 +76,7 @@ def main():
     parser.add_argument(
         "--outfolder",
         default=None,
-        help="Folder for fixation JSONs. Defaults to <path>/filtered/fixation_points.",
+        help="Folder for fixation JSONs. Defaults to outputs/fixations/<dataset>/gradient.",
     )
     parser.add_argument("--num_fixations", type=int, default=1, help="Number of fixation points per image.")
     parser.add_argument("--min_distance", type=int, default=64, help="Minimum pixel distance between fixation points.")
@@ -78,7 +85,7 @@ def main():
     args = parser.parse_args()
 
     image_root = Path(args.path)
-    output_root = Path(args.outfolder) if args.outfolder else image_root / "filtered" / "fixation_points"
+    output_root = Path(args.outfolder) if args.outfolder else default_fixation_root(image_root, "gradient")
 
     images = list(iter_images(image_root))
     if not images:

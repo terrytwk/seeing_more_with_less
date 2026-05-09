@@ -1,121 +1,175 @@
-# Changes to Forked Repo
+# Changes from Original Main
 
-Tracking modifications made to [seeingmorewithless.github.io](https://seeingmorewithless.github.io/) / CVPR 2025 codebase.
+This file tracks changes made relative to the original `main` branch of the forked Seeing More with Less repository. It intentionally excludes changes introduced by Francis's `francis-changes` branch.
+
+Original baseline:
+
+```text
+main / origin/master: 40a2e90201cb8b5dd5bdcfbc0ed45843fd9cd854
+```
 
 ---
 
-## 1. Python port of MATLAB sampling map generator
+## 1. Python Sampling Map Generation
 
-**New file:** `seeing_more_with_less/matlab/generate_sampling_maps.py`
+**Added:** `matlab/generate_sampling_maps.py`
 
-The original Step 1 of the pipeline required MATLAB (R2020a+) to generate the sampling parameter file. This script is a full Python port of both MATLAB files:
+The original code generated sampling-map parameters with MATLAB. This adds a Python port of the MATLAB workflow from:
 
-- `matlab/extract_model_parameters.m` — model parameter setup via cubic spline interpolation
-- `matlab/generic_inverted_pyramid_model.m` — foveated + uniform Gaussian filter generation
+- `matlab/extract_model_parameters.m`
+- `matlab/generic_inverted_pyramid_model.m`
 
-The script produces `matlab/sampling_scheme_params.mat` in HDF5 v7.3 format, which is read directly by `sampling_schemes/filter_image.py` via `hdf5storage`.
+The script writes:
 
-**Usage:**
+```text
+matlab/sampling_scheme_params.mat
+```
+
+Usage:
+
 ```bash
-pip install hdf5storage
 python matlab/generate_sampling_maps.py --model_index 1 --fov_index 2
 ```
 
 ---
 
-## 2. Fixed hardcoded output path in `filter_image.py`
+## 2. `filter_image.py` Portability Fixes
 
-**File:** `seeing_more_with_less/sampling_schemes/filter_image.py`
+**Modified:** `sampling_schemes/filter_image.py`
 
-The `--outfolder` argument was prepended with a hardcoded Linux cluster path (`/home/projects/bagon/userh/data/`), making the script fail outside that environment.
+Changes:
 
-**Before:**
-```python
-new_database_path = os.path.join("/home/projects/bagon/userh/data/", args.outfolder + ...)
+- Removed the hardcoded cluster output prefix (`/home/projects/bagon/userh/data/`).
+- Made `--outfolder` behave as a normal path prefix.
+- Fixed argparse help text containing `%`, which crashes on newer Python versions.
+- Added support for external fixation JSON files.
+
+Filtered images are written as:
+
+```text
+{outfolder}_{fov}d_{budget}perc/{Variable,Constant}/
 ```
 
-**After:**
-```python
-new_database_path = os.path.join(args.outfolder + ...)
-```
+External fixation options:
 
-`--outfolder` now behaves as a plain path prefix relative to the working directory.
+```text
+--fixation_json_root
+--fixation_json_only
+```
 
 ---
 
-## 3. Fixed argparse help string in `filter_image.py`
+## 3. DeepGaze IIE Fixation Generation
 
-**File:** `seeing_more_with_less/sampling_schemes/filter_image.py`
+**Added:**
 
-Python 3.14's argparse treats `%` in help strings as a format character, causing a crash on startup. Escaped `%` → `%%` in the `--model_index` help string.
+```text
+fixation/deepgaze/predict_fixations.py
+fixation/deepgaze/fixation_selector.py
+inference/deepgaze/deepgaze_runner.py
+inference/deepgaze/run_deepgaze.py
+```
 
----
+DeepGaze IIE can be used to generate saliency-based fixation JSONs for the foveated sampler.
 
-## 4. Added DeepGaze IIE fixation generation
-
-**New directory:** `seeing_more_with_less/saliency/deepgaze/`
-**Updated file:** `seeing_more_with_less/sampling_schemes/filter_image.py`
-
-Generate saliency-based fixation JSONs, with optional overlay output for visual inspection:
+Example:
 
 ```bash
-saliency/deepgaze/predict_fixations.py \
-    --path ./data/raw \
+python fixation/deepgaze/predict_fixations.py \
+    --path data/coco/val2017 \
     --num_fixations 1 \
     --device auto \
-    --saliency_overlay_root ./data/raw/filtered/deepgaze_saliency_overlays \
+    --saliency_overlay_root outputs/saliency/coco_val2017/deepgaze/overlays \
     --overwrite
 ```
 
-`filter_image.py` now accepts externally generated fixation JSONs:
+Default outputs:
 
-- `--fixation_json_root`: directory containing per-image fixation JSONs. Defaults to `<path>/filtered/fixation_points`, preserving the previous behavior.
-- `--fixation_json_only`: when a JSON is present, use only JSON fixation points instead of also generating the default center fixation.
+```text
+outputs/fixations/<dataset>/deepgaze/
+outputs/saliency/<dataset>/deepgaze/
+```
 
-Example foveation command using DeepGaze fixations:
+Raw DeepGaze saliency inference without fixation selection:
 
 ```bash
-python sampling_schemes/filter_image.py \
-    --model_index 0 \
-    --fov_index 1 \
-    --type var \
-    --path ./data/raw \
-    --outfolder ./filtered_output_deepgaze \
-    --fixation_json_root ./data/raw/filtered/fixation_points \
-    --fixation_json_only \
-    --batchsize 9999 \
-    --index 1
+python inference/deepgaze/run_deepgaze.py \
+    --path data/coco/val2017 \
+    --map_root outputs/saliency/coco_val2017/deepgaze/maps \
+    --overlay_root outputs/saliency/coco_val2017/deepgaze/overlays
 ```
 
 ---
 
-## 5. Downloaded COCO 2017 dataset
+## 4. Generated Output Convention
 
-**Directory:** `data/coco/`
+Generated artifacts are organized under `outputs/`; downloaded/source datasets remain under `data/`.
 
-Required for object detection experiments (bin evaluation, sample-equalized evaluation, neuron specialization). Downloaded the three standard splits:
+```text
+data/                         # downloaded/source datasets
+outputs/fixations/<dataset>/<strategy>/
+outputs/saliency/<dataset>/deepgaze/{npy,maps,overlays}/
+outputs/filtered/<dataset>/<variant>_<fov>d_<budget>perc/
+outputs/results/<dataset>/
+outputs/figures/
+```
 
-| File | Size | Status |
-|---|---|---|
-| `annotations_trainval2017.zip` | ~241 MB | Done |
-| `val2017.zip` | ~1 GB | In progress |
-| `train2017.zip` | ~18 GB | In progress |
+Shared path helpers:
 
-**To unzip once complete:**
+```text
+fixation/common.py
+```
+
+For `data/coco/val2017`, the derived dataset name is:
+
+```text
+coco_val2017
+```
+
+---
+
+## 5. COCO Download Helper
+
+**Added:** `scripts/download_coco.py`
+
+Downloads and extracts COCO 2017 annotations plus `val2017` by default:
+
 ```bash
-cd data/coco
-unzip annotations_trainval2017.zip
-unzip val2017.zip
-unzip train2017.zip
+python scripts/download_coco.py
 ```
 
-Expected layout after unzipping:
+Optional train split:
+
+```bash
+python scripts/download_coco.py --include-train
 ```
-data/coco/
-├── annotations/
-│   ├── instances_train2017.json
-│   ├── instances_val2017.json
-│   └── ...
-├── train2017/      # ~118k images
-└── val2017/        # ~5k images
+
+Default dataset layout:
+
+```text
+data/coco/annotations/
+data/coco/val2017/
+data/coco/train2017/        # only with --include-train
 ```
+
+---
+
+## 6. Documentation and Dependency Updates
+
+**Added/updated:**
+
+```text
+README.md
+COMMANDS.md
+CHANGES.md
+TODO.md
+requirements.txt
+```
+
+The docs now include:
+
+- COCO download instructions
+- DeepGaze fixation generation
+- external fixation JSON usage in `filter_image.py`
+- the `data/` vs. `outputs/` storage convention
+- reproduction commands for the non-Francis additions listed above

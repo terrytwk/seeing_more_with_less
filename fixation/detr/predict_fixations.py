@@ -1,10 +1,17 @@
 #!/usr/bin/env python3
 import argparse
 import json
+import sys
 from pathlib import Path
 
 import numpy as np
 from PIL import Image
+
+try:
+    from fixation.common import default_fixation_root
+except ImportError:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+    from fixation.common import default_fixation_root
 
 IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".bmp", ".webp", ".tif", ".tiff", ".avif"}
 
@@ -34,7 +41,7 @@ def main():
     parser.add_argument(
         "--outfolder",
         default=None,
-        help="Folder for fixation JSONs. Defaults to <path>/filtered/fixation_points.",
+        help="Folder for fixation JSONs. Defaults to outputs/fixations/<dataset>/detr.",
     )
     parser.add_argument("--model_path", default="data/models/detr-resnet-101",
                         help="Path or HuggingFace ID for DETR model.")
@@ -44,12 +51,14 @@ def main():
     parser.add_argument("--overwrite", action="store_true", help="Overwrite existing fixation JSONs.")
     args = parser.parse_args()
 
-    import sys
-    sys.path.insert(0, str(Path(__file__).parent.parent.parent / "inference" / "detr"))
-    from detr_runner import DETRRunner
+    try:
+        from inference.detr.detr_runner import DETRRunner
+    except ImportError:
+        sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+        from inference.detr.detr_runner import DETRRunner
 
     image_root = Path(args.path)
-    output_root = Path(args.outfolder) if args.outfolder else image_root / "filtered" / "fixation_points"
+    output_root = Path(args.outfolder) if args.outfolder else default_fixation_root(image_root, "detr")
 
     runner = DETRRunner(model_path=args.model_path, device=args.device, threshold=args.threshold)
 

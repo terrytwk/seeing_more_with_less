@@ -6,6 +6,13 @@ import torch
 from opt_einsum import contract
 import os
 from pathlib import Path
+
+
+def dataset_name_from_path(image_root):
+    image_root = Path(image_root)
+    if image_root.parent.name == "coco" and image_root.name in {"train2017", "val2017", "test2017"}:
+        return f"coco_{image_root.name}"
+    return image_root.name
 import scipy.interpolate
 import time
 import argparse
@@ -131,7 +138,7 @@ def main():
     parser.add_argument(
         "--outfolder",
         default="out",
-        help="Output folder name (under .../data/)",
+        help="Output path prefix. The script appends _<fov>d_<budget>perc/{Constant,Variable}.",
     )
     parser.add_argument(
         "--fov_index",
@@ -183,7 +190,7 @@ def main():
     parser.add_argument(
         "--fixation_json_root",
         default=None,
-        help="Directory containing fixation-point JSONs. Defaults to <path>/filtered/fixation_points.",
+        help="Directory containing fixation-point JSONs. Defaults to outputs/fixations/<dataset>/default.",
     )
     parser.add_argument(
         "--fixation_json_only",
@@ -237,7 +244,7 @@ def main():
         if args.type != 'const':
             fixation_json_root = args.fixation_json_root
             if fixation_json_root is None:
-                fixation_json_root = os.path.join(old_database_path, 'filtered', 'fixation_points')
+                fixation_json_root = os.path.join("outputs", "fixations", dataset_name_from_path(old_database_path), "default")
             json_info_filename = os.path.join(fixation_json_root, str(Path(images[i]).with_suffix('.json')))
             if os.path.exists(json_info_filename):
                 fp_json_file = open(json_info_filename)

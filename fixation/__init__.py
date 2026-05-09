@@ -1,0 +1,1 @@
+"""Fixation point generation strategies."""
