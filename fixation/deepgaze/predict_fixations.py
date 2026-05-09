@@ -1,17 +1,20 @@
 #!/usr/bin/env python3
 import argparse
 import json
-import os
+import sys
 from pathlib import Path
 
 import numpy as np
 from PIL import Image
 
 try:
-    from .deepgaze_runner import DeepGazeIIERunner
+    from fixation.common import default_fixation_root
+    from inference.deepgaze.deepgaze_runner import DeepGazeIIERunner
     from .fixation_selector import select_fixation_points
 except ImportError:
-    from deepgaze_runner import DeepGazeIIERunner
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+    from fixation.common import default_fixation_root
+    from inference.deepgaze.deepgaze_runner import DeepGazeIIERunner
     from fixation_selector import select_fixation_points
 
 
@@ -83,7 +86,7 @@ def main():
     parser.add_argument(
         "--outfolder",
         default=None,
-        help="Folder for fixation JSONs. Defaults to <path>/filtered/fixation_points.",
+        help="Folder for fixation JSONs. Defaults to outputs/fixations/<dataset>/deepgaze.",
     )
     parser.add_argument("--num_fixations", type=int, default=1, help="Number of fixation points per image.")
     parser.add_argument(
@@ -123,7 +126,10 @@ def main():
     args = parser.parse_args()
 
     image_root = Path(args.path)
-    output_root = Path(args.outfolder) if args.outfolder else image_root / "filtered" / "fixation_points"
+    output_root = Path(args.outfolder) if args.outfolder else default_fixation_root(image_root, "deepgaze")
+    saliency_map_root = Path(args.saliency_map_root) if args.saliency_map_root else None
+    saliency_overlay_root = Path(args.saliency_overlay_root) if args.saliency_overlay_root else None
+    saliency_npy_root = Path(args.saliency_npy_root) if args.saliency_npy_root else None
 
     runner = DeepGazeIIERunner(device=args.device)
     images = list(iter_images(image_root))
@@ -147,14 +153,14 @@ def main():
             threshold=args.threshold,
         )
         write_fixation_json(output_path, image.shape, objects_info)
-        if args.saliency_map_root:
-            saliency_map_path = Path(args.saliency_map_root) / image_path.with_suffix(".png").name
+        if saliency_map_root:
+            saliency_map_path = saliency_map_root / image_path.with_suffix(".png").name
             save_saliency_map(saliency_map_path, saliency)
-        if args.saliency_overlay_root:
-            overlay_path = Path(args.saliency_overlay_root) / image_path.with_suffix(".png").name
+        if saliency_overlay_root:
+            overlay_path = saliency_overlay_root / image_path.with_suffix(".png").name
             save_saliency_overlay(overlay_path, image, saliency)
-        if args.saliency_npy_root:
-            npy_path = Path(args.saliency_npy_root) / image_path.with_suffix(".npy").name
+        if saliency_npy_root:
+            npy_path = saliency_npy_root / image_path.with_suffix(".npy").name
             npy_path.parent.mkdir(parents=True, exist_ok=True)
             np.save(npy_path, saliency)
         print(f"Wrote {output_path}")

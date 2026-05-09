@@ -1,60 +1,315 @@
 # Reproduction Commands
 
-All commands run from the repo root (`seeing_more_with_less/`) with the virtual environment activated.
+All commands run from the repo root with the virtual environment activated:
 
 ```bash
 source venv/bin/activate
 ```
 
+Generated artifacts should go under `outputs/`. Downloaded/source datasets should stay under `data/`.
+
 ---
 
-## Step 1 — Generate sampling maps
+## 0. Download COCO 2017
+
+Default download: annotations plus `val2017`.
+
+```bash
+python scripts/download_coco.py
+```
+
+Optional full training split:
+
+```bash
+python scripts/download_coco.py --include-train
+```
+
+Outputs:
+
+```text
+data/coco/annotations/
+data/coco/val2017/
+data/coco/train2017/        # only with --include-train
+```
+
+---
+
+## 1. Generate Sampling Maps
 
 ```bash
 python matlab/generate_sampling_maps.py --model_index 1 --fov_index 2
 ```
 
-Output: `matlab/sampling_scheme_params.mat`
+Output:
+
+```text
+matlab/sampling_scheme_params.mat
+```
+
+Notes:
+
+- `generate_sampling_maps.py` uses 1-based indices.
+- `sampling_schemes/filter_image.py` uses 0-based indices.
 
 ---
 
-## Step 2 — Apply foveated (variable) sampling to images
+## 2. Generate Fixation JSONs
+
+Default fixation outputs follow:
+
+```text
+outputs/fixations/<dataset>/<strategy>/
+```
+
+For COCO val2017, `<dataset>` is `coco_val2017`.
+
+### Random
+
+```bash
+python fixation/random/predict_fixations.py \
+    --path data/coco/val2017 \
+    --seed 42
+```
+
+Output:
+
+```text
+outputs/fixations/coco_val2017/random/
+```
+
+### Gradient
+
+```bash
+python fixation/gradient/predict_fixations.py \
+    --path data/coco/val2017 \
+    --blur_sigma 3
+```
+
+Output:
+
+```text
+outputs/fixations/coco_val2017/gradient/
+```
+
+### DETR
+
+```bash
+python fixation/detr/predict_fixations.py \
+    --path data/coco/val2017 \
+    --model_path data/models/detr-resnet-101
+```
+
+Output:
+
+```text
+outputs/fixations/coco_val2017/detr/
+```
+
+### DeepGaze IIE
+
+```bash
+python fixation/deepgaze/predict_fixations.py \
+    --path data/coco/val2017 \
+    --num_fixations 1 \
+    --device auto \
+    --saliency_overlay_root outputs/saliency/coco_val2017/deepgaze/overlays \
+    --overwrite
+```
+
+Output:
+
+```text
+outputs/fixations/coco_val2017/deepgaze/
+outputs/saliency/coco_val2017/deepgaze/overlays/
+```
+
+Raw DeepGaze saliency inference without fixation selection:
+
+```bash
+python inference/deepgaze/run_deepgaze.py \
+    --path data/coco/val2017 \
+    --map_root outputs/saliency/coco_val2017/deepgaze/maps \
+    --overlay_root outputs/saliency/coco_val2017/deepgaze/overlays
+```
+
+Default `.npy` output:
+
+```text
+outputs/saliency/coco_val2017/deepgaze/npy/
+```
+
+---
+
+## 3. Apply Foveated Sampling
+
+The sampler appends `_<fov>d_<budget>perc/{Variable,Constant}` to `--outfolder`.
+
+### Center Fixation
 
 ```bash
 python sampling_schemes/filter_image.py \
     --model_index 0 \
     --fov_index 1 \
     --type var \
-    --path ./data/raw \
-    --outfolder ./filtered_output \
+    --path data/coco/val2017 \
+    --outfolder outputs/filtered/coco_val2017/var_center \
     --batchsize 9999 \
     --index 1
 ```
 
-Output: `filtered_output_30d_3perc/Variable/`
+Output:
 
----
+```text
+outputs/filtered/coco_val2017/var_center_30d_3perc/Variable/
+```
 
-## Step 2 — Apply constant (uniform) sampling to images
+### Random Fixation
+
+```bash
+python sampling_schemes/filter_image.py \
+    --model_index 0 \
+    --fov_index 1 \
+    --type var \
+    --path data/coco/val2017 \
+    --outfolder outputs/filtered/coco_val2017/var_random \
+    --fixation_json_root outputs/fixations/coco_val2017/random \
+    --fixation_json_only \
+    --batchsize 9999 \
+    --index 1
+```
+
+### Gradient Fixation
+
+```bash
+python sampling_schemes/filter_image.py \
+    --model_index 0 \
+    --fov_index 1 \
+    --type var \
+    --path data/coco/val2017 \
+    --outfolder outputs/filtered/coco_val2017/var_gradient \
+    --fixation_json_root outputs/fixations/coco_val2017/gradient \
+    --fixation_json_only \
+    --batchsize 9999 \
+    --index 1
+```
+
+### DETR Fixation
+
+```bash
+python sampling_schemes/filter_image.py \
+    --model_index 0 \
+    --fov_index 1 \
+    --type var \
+    --path data/coco/val2017 \
+    --outfolder outputs/filtered/coco_val2017/var_detr \
+    --fixation_json_root outputs/fixations/coco_val2017/detr \
+    --fixation_json_only \
+    --batchsize 9999 \
+    --index 1
+```
+
+### DeepGaze Fixation
+
+```bash
+python sampling_schemes/filter_image.py \
+    --model_index 0 \
+    --fov_index 1 \
+    --type var \
+    --path data/coco/val2017 \
+    --outfolder outputs/filtered/coco_val2017/var_deepgaze \
+    --fixation_json_root outputs/fixations/coco_val2017/deepgaze \
+    --fixation_json_only \
+    --batchsize 9999 \
+    --index 1
+```
+
+### Constant Sampling
 
 ```bash
 python sampling_schemes/filter_image.py \
     --model_index 0 \
     --fov_index 1 \
     --type const \
-    --path ./data/raw \
-    --outfolder ./filtered_output \
+    --path data/coco/val2017 \
+    --outfolder outputs/filtered/coco_val2017/const \
     --batchsize 9999 \
     --index 1
 ```
 
-Output: `filtered_output_30d_3perc/Constant/`
+Output:
+
+```text
+outputs/filtered/coco_val2017/const_30d_3perc/Constant/
+```
 
 ---
 
-## Notes
+## 4. Run Inference
 
-- `--model_index 0` = 3% pixel budget (0-based for `filter_image.py`, 1-based for `generate_sampling_maps.py`)
-- `--fov_index 1` = 30° field of view (0-based for `filter_image.py`)
-- Set `--batchsize` larger than your total image count to process all images in one run
-- Output folder is named automatically as `{outfolder}_{fov}d_{budget}perc/`
+### DETR Detection
+
+```bash
+python inference/detr/run_detection.py \
+    --path outputs/filtered/coco_val2017/var_center_30d_3perc/Variable \
+    --model_path data/models/detr-resnet-101 \
+    --output outputs/results/coco_val2017/detections_var_center.json \
+    --annotations data/coco/annotations/instances_val2017.json
+```
+
+### ViLT VQA
+
+```bash
+python inference/vilt/run_vqa.py \
+    --path outputs/filtered/coco_val2017/var_center_30d_3perc/Variable \
+    --model_path data/models/vilt-b32-finetuned-vqa \
+    --questions data/vqav2/v2_OpenEnded_mscoco_val2014_questions.json \
+    --annotations data/vqav2/v2_mscoco_val2014_annotations.json \
+    --output outputs/results/coco_val2017/vqa_var_center.json
+```
+
+---
+
+## 5. End-to-End Pipeline
+
+Runs fixation generation, filtering, DETR inference, ViLT inference, and batch-level reporting for center/random/gradient/DETR/DeepGaze/constant variants.
+
+```bash
+python run_pipeline.py \
+    --images data/coco/val2017 \
+    --annotations data/coco/annotations/instances_val2017.json \
+    --vqa_questions data/vqav2/v2_OpenEnded_mscoco_val2014_questions.json \
+    --vqa_annotations data/vqav2/v2_mscoco_val2014_annotations.json \
+    --detr_model data/models/detr-resnet-101 \
+    --vilt_model data/models/vilt-b32-finetuned-vqa \
+    --batch_size 10
+```
+
+Default outputs:
+
+```text
+outputs/fixations/coco_val2017/
+outputs/filtered/coco_val2017/
+outputs/results/coco_val2017/partial_results.json
+```
+
+---
+
+## 6. Visualize Example
+
+```bash
+python scripts/visualize_example.py
+```
+
+Default output:
+
+```text
+outputs/figures/foveation_example.png
+```
+
+---
+
+## Index Notes
+
+- `--model_index 0` in `filter_image.py` = 3% pixel budget.
+- `--fov_index 1` in `filter_image.py` = 30 degree field of view.
+- `filter_image.py` output folders are named automatically as `{outfolder}_{fov}d_{budget}perc/`.
