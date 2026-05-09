@@ -96,6 +96,23 @@ This repository contains the experiment code accompanying the paper. Our experim
 │   ├── display_n_overlaped_predictions_and_save.py
 │   └── model_utils.py
 │
+├── fixation/                    # Fixation point strategies (new)
+│   ├── random/
+│   │   └── predict_fixations.py
+│   ├── gradient/
+│   │   └── predict_fixations.py
+│   └── main_object/
+│       └── predict_fixations.py
+│
+├── inference/                   # Model inference runners (new)
+│   ├── detr/
+│   │   ├── detr_runner.py
+│   │   └── run_detection.py
+│   └── vilt/
+│       ├── vilt_runner.py
+│       └── run_vqa.py
+│
+├── run_pipeline.py              # End-to-end pipeline (new)
 ├── requirements.txt
 └── README.md
 ```
@@ -242,6 +259,39 @@ python sampling_schemes/filter_image.py \
 ```
 
 See `saliency/deepgaze/README.md` for saliency map and raw probability outputs.
+
+#### Additional Fixation Strategies
+
+Beyond DeepGaze, three further fixation strategies are implemented under `fixation/`. Each produces per-image JSON files in the same format consumed by `filter_image.py`.
+
+**Random fixation** — selects a uniformly random point per image. Useful as a lower-bound baseline for non-center fixation.
+
+```bash
+python fixation/random/predict_fixations.py \
+    --path ./data/raw \
+    --outfolder ./data/raw/filtered/fixation_points_random \
+    --seed 42
+```
+
+**Gradient fixation** — selects the pixel of maximum Sobel gradient magnitude (sharpest edge), with optional Gaussian pre-smoothing to suppress noise peaks.
+
+```bash
+python fixation/gradient/predict_fixations.py \
+    --path ./data/raw \
+    --outfolder ./data/raw/filtered/fixation_points_gradient \
+    --blur_sigma 3
+```
+
+**Main-object fixation** — runs DETR on each image and fixates on the centroid of the highest-confidence detection. Falls back to image center if no objects are detected.
+
+```bash
+python fixation/main_object/predict_fixations.py \
+    --path ./data/raw \
+    --model_path data/models/detr-resnet-101 \
+    --outfolder ./data/raw/filtered/fixation_points_main_object
+```
+
+All three accept `--num_fixations` and `--overwrite` and are passed to `filter_image.py` via `--fixation_json_root` and `--fixation_json_only`, identical to the DeepGaze workflow.
 
 ---
 
@@ -431,6 +481,66 @@ If you find this work useful in your research, please cite:
     year      = {2025}
 }
 ```
+
+---
+
+---
+
+## Inference & Evaluation
+
+Lightweight HuggingFace-based inference runners for DETR (object detection) and ViLT (visual question answering). These operate on any folder of images produced by `filter_image.py`.
+
+### DETR Object Detection
+
+```bash
+python inference/detr/run_detection.py \
+    --path ./filtered_output_30d_3perc/Variable \
+    --model_path data/models/detr-resnet-101 \
+    --output results/detections.json \
+    --annotations data/coco/annotations/instances_val2017.json
+```
+
+Outputs a COCO-format predictions JSON and optionally evaluates mAP via pycocotools when `--annotations` is provided.
+
+### ViLT Visual Question Answering
+
+```bash
+python inference/vilt/run_vqa.py \
+    --path ./filtered_output_30d_3perc/Variable \
+    --model_path data/models/vilt-b32-finetuned-vqa \
+    --questions data/vqav2/v2_OpenEnded_mscoco_val2014_questions.json \
+    --annotations data/vqav2/v2_mscoco_val2014_annotations.json \
+    --output results/vqa_results.json
+```
+
+Reports per-question soft accuracy (standard VQA metric: min(annotator agreement / 3, 1)) and overall accuracy.
+
+---
+
+## End-to-End Pipeline
+
+`run_pipeline.py` ties the full workflow together: generates fixation JSONs for all strategies, runs all filter variants in parallel, runs DETR and ViLT inference, and prints a results table after every batch.
+
+```bash
+python run_pipeline.py \
+    --images data/coco/val2017 \
+    --annotations data/coco/annotations/instances_val2017.json \
+    --vqa_questions data/vqav2/v2_OpenEnded_mscoco_val2014_questions.json \
+    --vqa_annotations data/vqav2/v2_mscoco_val2014_annotations.json \
+    --detr_model data/models/detr-resnet-101 \
+    --vilt_model data/models/vilt-b32-finetuned-vqa \
+    --batch_size 10
+```
+
+Results are printed after each batch and accumulated in `data/pipeline_output/partial_results.json`. The five variants compared are:
+
+| Variant | Description |
+|---|---|
+| `var_center` | Foveated, fixation at image center (paper baseline) |
+| `var_random` | Foveated, random fixation point |
+| `var_gradient` | Foveated, fixation at peak gradient magnitude |
+| `var_main_object` | Foveated, fixation at centroid of top DETR detection |
+| `const` | Uniform sampling, no foveal effect (paper baseline) |
 
 ---
 

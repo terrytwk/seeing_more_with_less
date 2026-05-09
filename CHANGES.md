@@ -86,3 +86,36 @@ python sampling_schemes/filter_image.py \
     --batchsize 9999 \
     --index 1
 ```
+
+---
+
+## 5. Downloaded COCO 2017 dataset
+
+**Directory:** `data/coco/`
+
+Required for object detection experiments (bin evaluation, sample-equalized evaluation, neuron specialization). Downloaded the three standard splits:
+
+| File | Size | Status |
+|---|---|---|
+| `annotations_trainval2017.zip` | ~241 MB | Done |
+| `val2017.zip` | ~1 GB | In progress |
+| `train2017.zip` | ~18 GB | In progress |
+
+**To unzip once complete:**
+```bash
+cd data/coco
+unzip annotations_trainval2017.zip
+unzip val2017.zip
+unzip train2017.zip
+```
+
+Expected layout after unzipping:
+```
+data/coco/
+├── annotations/
+│   ├── instances_train2017.json
+│   ├── instances_val2017.json
+│   └── ...
+├── train2017/      # ~118k images
+└── val2017/        # ~5k images
+```

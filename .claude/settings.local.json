@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(venv/bin/python run_pipeline.py)",
+      "Bash(sysctl hw.memsize)",
+      "Bash(awk '{print $2/1024/1024/1024 \" GB RAM\"}')",
+      "Bash(venv/bin/python visualize_example.py)"
+    ]
+  }
+}
