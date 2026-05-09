@@ -10,7 +10,23 @@ Generated artifacts should go under `outputs/`. Downloaded/source datasets shoul
 
 ---
 
-## 0. Download COCO 2017
+## 0. Download VQAv2 for ViLT Reproduction
+
+The paper's ViLT result uses VQAv2 validation questions on COCO `val2014` images.
+
+```bash
+python scripts/download_vqav2.py
+```
+
+Outputs:
+
+```text
+data/vqav2/val2014/
+data/vqav2/v2_OpenEnded_mscoco_val2014_questions.json
+data/vqav2/v2_mscoco_val2014_annotations.json
+```
+
+## 0b. Download COCO 2017
 
 Default download: annotations plus `val2017`.
 
@@ -50,6 +66,46 @@ Notes:
 
 - `generate_sampling_maps.py` uses 1-based indices.
 - `sampling_schemes/filter_image.py` uses 0-based indices.
+
+---
+
+## 1b. Reproduce Paper Table 1: ViLT on VQAv2
+
+This is the focused reproduction path for the paper's ViLT/VQAv2 result. It evaluates the original pretrained ViLT checkpoint on:
+
+- full-resolution COCO `val2014`,
+- center-foveated variable sampling at 3% density,
+- uniform sampling at 3% density.
+
+```bash
+python scripts/reproduce_vilt_vqav2.py \
+    --images data/vqav2/val2014 \
+    --questions data/vqav2/v2_OpenEnded_mscoco_val2014_questions.json \
+    --annotations data/vqav2/v2_mscoco_val2014_annotations.json \
+    --model_path dandelin/vilt-b32-finetuned-vqa
+```
+
+Expected paper-scale results:
+
+| Condition | Accuracy |
+|---|---:|
+| Full resolution | ~81.1% |
+| Variable 3% | ~64.9% |
+| Uniform 3% | ~62.9% |
+
+For a quick smoke test:
+
+```bash
+python scripts/reproduce_vilt_vqav2.py --conditions full --max_questions 20
+```
+
+Default outputs:
+
+```text
+outputs/filtered/vqav2_val2014/var_center_30d_3perc/Variable/
+outputs/filtered/vqav2_val2014/uniform_30d_3perc/Constant/
+outputs/results/vqav2_val2014/vilt_vqav2_reproduction.json
+```
 
 ---
 

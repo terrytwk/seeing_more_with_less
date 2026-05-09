@@ -172,6 +172,16 @@ python scripts/download_coco.py
 
 This writes to `data/coco/` and downloads `annotations_trainval2017.zip` plus `val2017.zip`. To include the much larger training split, pass `--include-train`.
 
+### VQAv2 data
+
+Download the VQAv2 validation files used to reproduce the paper's ViLT result:
+
+```bash
+python scripts/download_vqav2.py
+```
+
+This writes COCO `val2014` images and VQAv2 validation questions/annotations under `data/vqav2/`.
+
 ### Generated outputs
 
 Keep downloaded datasets under `data/` and generated artifacts under `outputs/`:
@@ -546,14 +556,28 @@ Outputs a COCO-format predictions JSON and optionally evaluates mAP via pycocoto
 
 ```bash
 python inference/vilt/run_vqa.py \
-    --path outputs/filtered/coco_val2017/var_center_30d_3perc/Variable \
-    --model_path data/models/vilt-b32-finetuned-vqa \
+    --path outputs/filtered/vqav2_val2014/var_center_30d_3perc/Variable \
+    --model_path dandelin/vilt-b32-finetuned-vqa \
     --questions data/vqav2/v2_OpenEnded_mscoco_val2014_questions.json \
     --annotations data/vqav2/v2_mscoco_val2014_annotations.json \
-    --output outputs/results/coco_val2017/vqa_var_center.json
+    --output outputs/results/vqav2_val2014/vqa_var_center.json
 ```
 
-Reports per-question soft accuracy (standard VQA metric: min(annotator agreement / 3, 1)) and overall accuracy.
+Reports official-style VQA soft accuracy, answer-type breakdowns, and overall accuracy.
+
+### Reproduce ViLT VQAv2 Paper Result
+
+The paper's ViLT result uses VQAv2 validation on COCO `val2014`, without fine-tuning ViLT, comparing full-resolution images to center-foveated variable 3% sampling and uniform 3% sampling:
+
+```bash
+python scripts/reproduce_vilt_vqav2.py \
+    --images data/vqav2/val2014 \
+    --questions data/vqav2/v2_OpenEnded_mscoco_val2014_questions.json \
+    --annotations data/vqav2/v2_mscoco_val2014_annotations.json \
+    --model_path dandelin/vilt-b32-finetuned-vqa
+```
+
+The expected paper-scale accuracies are approximately 81.1% full resolution, 64.9% variable 3%, and 62.9% uniform 3%. Results are written to `outputs/results/vqav2_val2014/vilt_vqav2_reproduction.json`.
 
 ---
 
