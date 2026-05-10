@@ -4,6 +4,7 @@ Optimized pipeline: all fixation variants, parallel filter execution, reports ev
 """
 import argparse
 import json
+import re
 import subprocess
 import time
 from pathlib import Path
@@ -19,6 +20,7 @@ from fixation.common import dataset_name_from_path, default_fixation_root
 FOV_DEG = 30
 BUDGET_PERC = 3
 VARIANTS = ["var_center", "var_random", "var_gradient", "var_detr", "var_deepgaze", "const"]
+TRAILING_IMAGE_ID = re.compile(r"(\d+)$")
 
 
 def compute_gradient_fixation(image, blur_sigma=3):
@@ -68,12 +70,27 @@ def find_filtered_image(filt_dir, stem):
     return matches[0] if matches else None
 
 
-def print_table(n_images, vqa_evaluation, detection_evaluation):
+def image_id_from_path(path):
+    match = TRAILING_IMAGE_ID.search(Path(path).stem)
+    if not match:
+        raise ValueError(f"Cannot parse a trailing numeric image id from filename: {path}")
+    return int(match.group(1))
+
+
+def print_detection_skipped(reason):
+    print("\n  Detection mAP - DETR")
+    print(f"  Skipped: {reason}")
+
+
+def print_table(n_images, vqa_evaluation, detection_evaluation, detection_skip_reason=None):
     print(f"\n{'='*64}", flush=True)
     print(f"  Results after {n_images} images  [{time.strftime('%H:%M:%S')}]", flush=True)
     print(f"{'='*64}", flush=True)
     vqa_evaluation.print_report()
-    detection_evaluation.print_report()
+    if detection_evaluation is None:
+        print_detection_skipped(detection_skip_reason)
+    else:
+        detection_evaluation.print_report()
     print(f"\n{'='*64}\n", flush=True)
 
 
@@ -112,8 +129,19 @@ def main():
     print("Loading VQA data...", flush=True)
     vqa_evaluation = VQAEvaluation(args.vqa_questions, args.vqa_annotations, VARIANTS)
 
-    print("Loading COCO annotations...", flush=True)
-    detection_evaluation = ObjectDetectionEvaluation(args.annotations, VARIANTS)
+    detection_evaluation = None
+    detection_skip_reason = None
+    annotations_path = Path(args.annotations) if args.annotations else None
+    if annotations_path and annotations_path.exists():
+        print("Loading COCO annotations...", flush=True)
+        detection_evaluation = ObjectDetectionEvaluation(str(annotations_path), VARIANTS)
+    else:
+        detection_skip_reason = (
+            f"annotation file not found: {annotations_path}"
+            if annotations_path else
+            "no annotation file was provided"
+        )
+        print(f"Skipping COCO detection evaluation: {detection_skip_reason}", flush=True)
 
     print("Generating random fixation JSONs...", flush=True)
     subprocess.run([
@@ -210,7 +238,7 @@ def main():
         print(f"[Batch {batch_num}] Filtering done in {time.time()-t0:.1f}s. Running inference...", flush=True)
 
         for img_path in batch:
-            image_id = int(img_path.stem)
+            image_id = image_id_from_path(img_path)
             for vname, (ftype, outf, _, _) in variant_cfg.items():
                 filt_path = find_filtered_image(filtered_dir(outf, ftype), img_path.stem)
                 if filt_path is None:
@@ -218,17 +246,22 @@ def main():
                 with Image.open(filt_path) as img:
                     arr = np.asarray(img.convert("RGB"))
 
-                detection_evaluation.add_predictions(vname, image_id, detr.predict(arr))
+                if detection_evaluation is not None:
+                    detection_evaluation.add_predictions(vname, image_id, detr.predict(arr))
                 vqa_evaluation.add_image_results(vname, image_id, arr, vilt)
 
         n_processed += len(batch)
-        print_table(n_processed, vqa_evaluation, detection_evaluation)
+        print_table(n_processed, vqa_evaluation, detection_evaluation, detection_skip_reason)
 
         with open(results_dir / "partial_results.json", "w") as f:
             json.dump({
                 "n_images": n_processed,
                 "vqa": vqa_evaluation.to_json(),
-                "det": detection_evaluation.to_json(),
+                "det": (
+                    detection_evaluation.to_json()
+                    if detection_evaluation is not None
+                    else {"enabled": False, "reason": detection_skip_reason}
+                ),
             }, f, indent=2)
 
 
