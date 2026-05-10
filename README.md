@@ -613,6 +613,28 @@ To render the example comparison figure after pipeline outputs exist:
 python scripts/visualize_example.py
 ```
 
+To compare filtered outputs for the same image across fixation strategies, use:
+
+```bash
+python scripts/visualize_filter_comparison.py \
+    --outputs-dir /home/terrytwk/orcd/scratch/vqav2/outputs \
+    --image-id 01757 \
+    --output /tmp/filter_comparison_01757.png
+```
+
+The script auto-discovers filtered method folders such as `var_center_30d_3perc/Variable`,
+`var_deepgaze_30d_3perc/Variable`, and `const_30d_3perc/Constant`. If `--image-id` is
+omitted, it selects the first image available for all selected methods. To run ViLT on the
+selected image and annotate each panel with image-level VQA accuracy, add `--run-vqa`:
+
+```bash
+python scripts/visualize_filter_comparison.py \
+    --image-id 01757 \
+    --run-vqa \
+    --vqa-output /tmp/filter_comparison_01757_vqa.json \
+    --output /tmp/filter_comparison_01757_vqa.png
+```
+
 ---
 
 ## Citation
