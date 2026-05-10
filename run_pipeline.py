@@ -43,7 +43,7 @@ def write_fixation_json(path, image_shape, objects_info):
 
 
 def launch_filter(images_dir, outfolder, filter_type, batch_index, batch_size,
-                  fixation_json_root=None, fixation_json_only=False):
+                  pool_threads=0, fixation_json_root=None, fixation_json_only=False):
     cmd = [
         "venv/bin/python", "sampling_schemes/filter_image.py",
         "--type", filter_type,
@@ -52,6 +52,7 @@ def launch_filter(images_dir, outfolder, filter_type, batch_index, batch_size,
         "--model_index", "0", "--fov_index", "1",
         "--batchsize", str(batch_size),
         "--index", str(batch_index),
+        "--pool_threads", str(pool_threads),
     ]
     if fixation_json_root:
         cmd += ["--fixation_json_root", str(fixation_json_root)]
@@ -108,6 +109,8 @@ def main():
     parser.add_argument("--deepgaze_min_distance", type=int, default=64)
     parser.add_argument("--deepgaze_threshold", type=float, default=None)
     parser.add_argument("--batch_size",   type=int, default=10)
+    parser.add_argument("--filter_pool_threads", type=int, default=0,
+                        help="Worker processes per filter variant. Total filter workers ~= variants * this value.")
     parser.add_argument("--max_images",   type=int, default=None)
     parser.add_argument("--device",       default="auto")
     args = parser.parse_args()
@@ -230,6 +233,7 @@ def main():
         t0 = time.time()
         procs = {
             vname: launch_filter(images_dir, outf, ftype, batch_num, args.batch_size,
+                                 pool_threads=args.filter_pool_threads,
                                  fixation_json_root=fp_root, fixation_json_only=fp_only)
             for vname, (ftype, outf, fp_root, fp_only) in variant_cfg.items()
         }
