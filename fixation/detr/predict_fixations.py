@@ -43,7 +43,7 @@ def main():
         default=None,
         help="Folder for fixation JSONs. Defaults to outputs/fixations/<dataset>/detr.",
     )
-    parser.add_argument("--model_path", default="data/models/detr-resnet-101",
+    parser.add_argument("--model_path", default="facebook/detr-resnet-101",
                         help="Path or HuggingFace ID for DETR model.")
     parser.add_argument("--num_fixations", type=int, default=1, help="Number of fixation points per image.")
     parser.add_argument("--threshold", type=float, default=0.5, help="DETR detection confidence threshold.")

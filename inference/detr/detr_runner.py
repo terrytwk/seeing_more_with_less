@@ -3,6 +3,15 @@ import torch
 from PIL import Image
 from transformers import DetrImageProcessor, DetrForObjectDetection
 
+try:
+    from inference.model_loading import resolve_pretrained_reference
+except ImportError:
+    import sys
+    from pathlib import Path
+
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+    from inference.model_loading import resolve_pretrained_reference
+
 
 def resolve_device(device):
     if device != "auto":
@@ -17,6 +26,11 @@ def resolve_device(device):
 class DETRRunner:
     def __init__(self, model_path, device="auto", threshold=0.5):
         self.device = resolve_device(device)
+        model_path = resolve_pretrained_reference(
+            model_path,
+            model_name="DETR",
+            recommended_id="facebook/detr-resnet-101",
+        )
         self.processor = DetrImageProcessor.from_pretrained(model_path)
         self.model = DetrForObjectDetection.from_pretrained(model_path).to(self.device)
         self.model.eval()

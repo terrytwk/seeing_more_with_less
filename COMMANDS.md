@@ -152,7 +152,7 @@ outputs/fixations/coco_val2017/gradient/
 ```bash
 python fixation/detr/predict_fixations.py \
     --path data/coco/val2017 \
-    --model_path data/models/detr-resnet-101
+    --model_path facebook/detr-resnet-101
 ```
 
 Output:
@@ -307,7 +307,7 @@ outputs/filtered/coco_val2017/const_30d_3perc/Constant/
 ```bash
 python inference/detr/run_detection.py \
     --path outputs/filtered/coco_val2017/var_center_30d_3perc/Variable \
-    --model_path data/models/detr-resnet-101 \
+    --model_path facebook/detr-resnet-101 \
     --output outputs/results/coco_val2017/detections_var_center.json \
     --annotations data/coco/annotations/instances_val2017.json
 ```
@@ -317,7 +317,7 @@ python inference/detr/run_detection.py \
 ```bash
 python inference/vilt/run_vqa.py \
     --path outputs/filtered/coco_val2017/var_center_30d_3perc/Variable \
-    --model_path data/models/vilt-b32-finetuned-vqa \
+    --model_path dandelin/vilt-b32-finetuned-vqa \
     --questions data/vqav2/v2_OpenEnded_mscoco_val2014_questions.json \
     --annotations data/vqav2/v2_mscoco_val2014_annotations.json \
     --output outputs/results/coco_val2017/vqa_var_center.json
@@ -335,8 +335,8 @@ python run_pipeline.py \
     --annotations data/coco/annotations/instances_val2017.json \
     --vqa_questions data/vqav2/v2_OpenEnded_mscoco_val2014_questions.json \
     --vqa_annotations data/vqav2/v2_mscoco_val2014_annotations.json \
-    --detr_model data/models/detr-resnet-101 \
-    --vilt_model data/models/vilt-b32-finetuned-vqa \
+    --detr_model facebook/detr-resnet-101 \
+    --vilt_model dandelin/vilt-b32-finetuned-vqa \
     --batch_size 10
 ```
 
