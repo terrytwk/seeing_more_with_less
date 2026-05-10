@@ -16,6 +16,7 @@ def dataset_name_from_path(image_root):
 import scipy.interpolate
 import time
 import argparse
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from PIL import Image
 import operator
 import json
@@ -26,6 +27,83 @@ def relu(x): # Regular ReLU function
 
 def drelu(x, m): # Double ended ReLU function, a linear function between for values between 0 and m, otherwise 0 and m at those values above or below respectively
     return min(relu(x), m)
+
+def configure_filter_globals(config):
+    global bypass_filter; bypass_filter = False
+    global processing_buffer; processing_buffer = config["batchsize"]
+    global old_database_path; old_database_path = config["path"]
+    global new_database_path; new_database_path = config["new_database_path"]
+    global is_full_fov; is_full_fov = False
+    global filter_run_type; filter_run_type = config["type"]
+    global filter_mat_prefix; filter_mat_prefix = config["mat_prefix"]
+    global filter_prefix_idx; filter_prefix_idx = config["prefix_idx"]
+    global filter_fixation_json_root; filter_fixation_json_root = config["fixation_json_root"]
+    global filter_fixation_json_only; filter_fixation_json_only = config["fixation_json_only"]
+    global filter_fp_shift_x; filter_fp_shift_x = config["fp_shift_x"]
+    global filter_fp_shift_y; filter_fp_shift_y = config["fp_shift_y"]
+
+
+def load_filter_parameters():
+    if 'seconds_per_pixel' in globals():
+        return
+
+    print("Reading in MAT file", flush=True)
+    mat_contents = utils.read_mat('sampling_scheme_params.mat', [
+        'seconds_per_pixel',
+        filter_mat_prefix + '_rf_circles_cntr_xy',
+        filter_mat_prefix + '_rf_filter',
+        filter_mat_prefix + '_rf_roi_half_sz',
+        filter_mat_prefix + '_max_out_img_sz',
+        filter_mat_prefix + '_tar_xlim',
+        filter_mat_prefix + '_tar_ylim',
+        filter_mat_prefix + '_src_xlim',
+        filter_mat_prefix + '_src_ylim',
+    ])
+    print("Finished reading MAT file", flush=True)
+
+    global seconds_per_pixel; seconds_per_pixel = mat_contents['seconds_per_pixel'][0][0]
+    circles_cntr_xy = mat_contents[filter_mat_prefix + '_rf_circles_cntr_xy']
+
+    global roi_half_sz; roi_half_sz = mat_contents[filter_mat_prefix + '_rf_roi_half_sz'][0][0].astype(int)
+    global calc_pts; calc_pts = roi_half_sz + np.floor(circles_cntr_xy / seconds_per_pixel + 0.5)[:, ::-1].astype(int)
+    global ch1_mode; ch1_mode = True if filter_prefix_idx == 0 else False
+    global filter; filter = mat_contents[filter_mat_prefix + '_rf_filter']
+    global max_out_img_sz; max_out_img_sz = mat_contents[filter_mat_prefix + '_max_out_img_sz'][0][0].astype(int)
+    global tar_xlim; tar_xlim = mat_contents[filter_mat_prefix + '_tar_xlim'].astype(int)
+    global tar_ylim; tar_ylim = mat_contents[filter_mat_prefix + '_tar_ylim'].astype(int)
+    global src_xlim; src_xlim = mat_contents[filter_mat_prefix + '_src_xlim'].astype(int)
+    global src_ylim; src_ylim = mat_contents[filter_mat_prefix + '_src_ylim'].astype(int)
+    mat_contents.clear()
+
+
+def get_fixation_points(image_name):
+    fixation_points = [[0, 0]]
+    obj_ids = [999]
+    if filter_run_type == 'const':
+        return fixation_points, obj_ids
+
+    fixation_json_root = filter_fixation_json_root
+    if fixation_json_root is None:
+        fixation_json_root = os.path.join("outputs", "fixations", dataset_name_from_path(old_database_path), "default")
+    json_info_filename = os.path.join(fixation_json_root, str(Path(image_name).with_suffix('.json')))
+    if os.path.exists(json_info_filename):
+        with open(json_info_filename) as fp_json_file:
+            json_data = json.load(fp_json_file)
+        objects_info = json_data["objects_info"]
+    else:
+        objects_info = []
+
+    if objects_info and filter_fixation_json_only:
+        fixation_points = []
+        obj_ids = []
+
+    if objects_info:
+        for obj_info in objects_info:
+            fixation_points.append([obj_info['centroid'][1],obj_info['centroid'][0]])
+            obj_ids.append(obj_info['obj_id'])
+
+    return fixation_points, obj_ids
+
 
 def filter_image(img):
 
@@ -128,6 +206,63 @@ def filter_preprocessing(org_image_name, out_image_name, fixation_point):
                 np.minimum(pil_img.size[1],fixation_point[1]+max_out_img_sz//2))
     return out_img, img_bbox
 
+
+def process_image(image_name):
+    now = datetime.now()
+    print(now.strftime("%d/%m/%Y %H:%M:%S") + " Processing image: " + image_name + " in " + new_database_path, flush=True)
+    generated = 0
+    skipped = 0
+    errors = 0
+
+    fixation_points, obj_ids = get_fixation_points(image_name)
+    for ind in range(len(fixation_points)):
+        try:
+            with Image.open(os.path.join(old_database_path, image_name)) as pil_img:
+                image_size = pil_img.size
+            if fixation_points[ind][0] == 0:
+                fixation_points[ind] = [drelu((image_size[0] // 2) + filter_fp_shift_x, image_size[0]), drelu((image_size[1] // 2) + filter_fp_shift_y, image_size[1])]
+
+            new_image_name = '%s_oid_%d_fpx_%d_fpy_%d.jpg' % (str(Path(image_name).with_suffix('')), obj_ids[ind], fixation_points[ind][0], fixation_points[ind][1])
+            if os.path.exists(os.path.join(new_database_path, new_image_name)):
+                skipped += 1
+                continue
+
+            try:
+                load_filter_parameters()
+                filter_preprocessing(image_name, new_image_name, fixation_points[ind])
+                generated += 1
+            except Exception as exc:
+                errors += 1
+                print("There are some errors generating image: " + new_image_name + ". skipping image... " + str(exc), flush=True)
+        except Exception as exc:
+            errors += 1
+            print("There are some errors loading image: " + image_name + ". skipping it... " + str(exc), flush=True)
+
+    return {"image": image_name, "generated": generated, "skipped": skipped, "errors": errors}
+
+
+def run_images(images, num_pool_threads, config=None):
+    totals = {"generated": 0, "skipped": 0, "errors": 0}
+    if num_pool_threads <= 1:
+        for image_name in images:
+            result = process_image(image_name)
+            for key in totals:
+                totals[key] += result[key]
+        return totals
+
+    print("Processing " + str(len(images)) + " images with " + str(num_pool_threads) + " workers", flush=True)
+    with ProcessPoolExecutor(max_workers=num_pool_threads, initializer=configure_filter_globals, initargs=(config,)) as executor:
+        futures = [executor.submit(process_image, image_name) for image_name in images]
+        for future in as_completed(futures):
+            try:
+                result = future.result()
+                for key in totals:
+                    totals[key] += result[key]
+            except Exception as exc:
+                totals["errors"] += 1
+                print("Worker failed while processing an image. skipping it... " + str(exc), flush=True)
+    return totals
+
 def main():
     parser = argparse.ArgumentParser(description="Images Generator")
     parser.add_argument(
@@ -215,17 +350,25 @@ def main():
     model_sample_percentage = [3, 10, 15, 20, 30, 40, 50, 60, 70, 80, 90]
     field_of_view_in_degrees = fog_deg_options[args.fov_index]
 
-    bypass_filter = False
     num_pool_threads = args.pool_threads
-#    global num_concurrent_img_filters; num_concurrent_img_filters = 6
-    global processing_buffer; processing_buffer = args.batchsize
-    global old_database_path; old_database_path = args.path
-    global new_database_path; new_database_path = os.path.join(args.outfolder+'_'+str(field_of_view_in_degrees)+'d_'+str(model_sample_percentage[args.model_index])+'perc', ['Constant', 'Variable'][prefix_idx])
 
     prefix_idx = type_strs.index(args.type)
     mat_prefix = ['const', 'var'][prefix_idx]
 
-    global is_full_fov; is_full_fov = False
+    config = {
+        "batchsize": args.batchsize,
+        "path": args.path,
+        "new_database_path": os.path.join(args.outfolder+'_'+str(field_of_view_in_degrees)+'d_'+str(model_sample_percentage[args.model_index])+'perc', ['Constant', 'Variable'][prefix_idx]),
+        "type": args.type,
+        "mat_prefix": mat_prefix,
+        "prefix_idx": prefix_idx,
+        "fixation_json_root": args.fixation_json_root,
+        "fixation_json_only": args.fixation_json_only,
+        "fp_shift_x": args.fp_shift_x,
+        "fp_shift_y": args.fp_shift_y,
+    }
+    configure_filter_globals(config)
+
     tmp_org_imgs = sorted(set(os.listdir(old_database_path)))
 #    tmp_org_imgs = sorted(set(os.listdir(os.path.join(old_database_path, 'try'))))
     if not os.path.exists(new_database_path):
@@ -233,85 +376,10 @@ def main():
     images = tmp_org_imgs[(args.index-1)*processing_buffer:np.minimum(len(tmp_org_imgs), args.index*processing_buffer)]
 
     start = time.time()
-    
-    for i in range(len(images)):
-        now = datetime.now()
-        print(now.strftime("%d/%m/%Y %H:%M:%S") + " Processing image: " + images[i] + " in " + new_database_path)
-        fixation_points = []
-        fixation_points.append([0, 0])
-        obj_ids = []
-        obj_ids.append(999)
-        if args.type != 'const':
-            fixation_json_root = args.fixation_json_root
-            if fixation_json_root is None:
-                fixation_json_root = os.path.join("outputs", "fixations", dataset_name_from_path(old_database_path), "default")
-            json_info_filename = os.path.join(fixation_json_root, str(Path(images[i]).with_suffix('.json')))
-            if os.path.exists(json_info_filename):
-                fp_json_file = open(json_info_filename)
-                json_data = json.load(fp_json_file)
-                image_size = json_data["image_size"]
-                objects_info = json_data["objects_info"]
-                fp_json_file.close()
-            else:
-                objects_info = []
-
-            if objects_info and args.fixation_json_only:
-                fixation_points = []
-                obj_ids = []
-
-            if objects_info:
-                for obj_info in objects_info:
-                    fixation_points.append([obj_info['centroid'][1],obj_info['centroid'][0]])
-                    obj_ids.append(obj_info['obj_id'])
-
-        for ind in range(len(fixation_points)):
-            try:
-                pil_img = Image.open(os.path.join(old_database_path, images[i]))
-                if fixation_points[ind][0] == 0:
-                    fixation_points[ind] = [drelu((pil_img.size[0] // 2) + args.fp_shift_x, pil_img.size[0]), drelu((pil_img.size[1] // 2) + args.fp_shift_y, pil_img.size[1])]
-
-                new_image_name = '%s_oid_%d_fpx_%d_fpy_%d.jpg' % (str(Path(images[i]).with_suffix('')), obj_ids[ind], fixation_points[ind][0], fixation_points[ind][1])
-                if os.path.exists(os.path.join(new_database_path, new_image_name)):
-                    continue
-
-                try:
-                    if not ('seconds_per_pixel' in locals()):
-                            print("Reading in MAT file")
-                            # mat_contents = utils.read_mat('sampling_models_' + str(model_sample_percentage[args.model_index]) + '_samp_per_' + str(field_of_view_in_degrees) + '_fov_deg_unfilt_foveola.mat',                            
-                            mat_contents = utils.read_mat('sampling_scheme_params.mat', [
-                                'seconds_per_pixel',
-                                mat_prefix + '_rf_circles_cntr_xy',
-                                mat_prefix + '_rf_filter',
-                                mat_prefix + '_rf_roi_half_sz',
-                                mat_prefix + '_max_out_img_sz',
-                                mat_prefix + '_tar_xlim',
-                                mat_prefix + '_tar_ylim',
-                                mat_prefix + '_src_xlim',
-                                mat_prefix + '_src_ylim',
-                            ])
-                            print("Finished reading MAT file")
-
-                            seconds_per_pixel = mat_contents['seconds_per_pixel'][0][0]
-                            circles_cntr_xy = mat_contents[mat_prefix + '_rf_circles_cntr_xy']
-
-                            global roi_half_sz; roi_half_sz = mat_contents[mat_prefix + '_rf_roi_half_sz'][0][0].astype(int)
-                            global calc_pts; calc_pts = roi_half_sz + np.floor(circles_cntr_xy / seconds_per_pixel + 0.5)[:, ::-1].astype(int)
-                            global ch1_mode; ch1_mode = True if prefix_idx == 0 else False
-                            global filter; filter = mat_contents[mat_prefix + '_rf_filter']
-                            global max_out_img_sz; max_out_img_sz = mat_contents[mat_prefix + '_max_out_img_sz'][0][0].astype(int)
-                            global tar_xlim; tar_xlim = mat_contents[mat_prefix + '_tar_xlim'].astype(int)
-                            global tar_ylim; tar_ylim = mat_contents[mat_prefix + '_tar_ylim'].astype(int)
-                            global src_xlim; src_xlim = mat_contents[mat_prefix + '_src_xlim'].astype(int)
-                            global src_ylim; src_ylim = mat_contents[mat_prefix + '_src_ylim'].astype(int)
-                            mat_contents.clear()
-                        
-                    out_img, out_img_bbox = filter_preprocessing(images[i], new_image_name, fixation_points[ind])
-                except:
-                    print("There are some errors generating image: " + new_image_name + ". skipping image...")
-            except:
-                print("There are some errors loading image: " + images[i] + ". skipping it...")
+    totals = run_images(images, num_pool_threads, config)
 
     print("Complete. Total elapsed time: " + str(time.time() - start) + " seconds")
+    print("Generated: " + str(totals["generated"]) + ", skipped existing: " + str(totals["skipped"]) + ", errors: " + str(totals["errors"]))
 
 if __name__ == "__main__":
     main()
