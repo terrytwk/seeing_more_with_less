@@ -121,3 +121,39 @@ This gives:
 - Stable outputs for center, DeepGaze, DETR, gradient, and random fixation methods.
 
 Avoid only replacing `NaN` with black or gray. That hides the failure mode but keeps an unnatural boundary in the model input.
+
+---
+
+## Empirical Observations from Off-Center Fixation Experiments
+
+We ran the pipeline across five fixation strategies on COCO val2017 + VQAv2 val using ViLT (VQA) and DETR (object detection) with frozen pretrained weights at 3% pixel budget, 30° FOV (`fov_index=1`).
+
+The black circular boundary artifact described above is visible in the off-center filtered outputs. See `foveation_example.png` for a side-by-side comparison — `var_random` and `var_gradient` show the most pronounced artifacts since their fixation points are most likely to be far from center. This is consistent with the FOV analysis above: `30deg` is insufficient to cover image corners for arbitrary fixation locations.
+
+**Preliminary results (340 images, 1757 VQA questions) — subject to update as pipeline continues:**
+
+VQA Accuracy — ViLT on VQAv2:
+
+| Fixation | Accuracy |
+|---|---|
+| `const` (uniform) | 63.9% |
+| `var_main_object` | 62.3% |
+| `var_center` (paper baseline) | 60.6% |
+| `var_gradient` | 59.1% |
+| `var_random` | 58.5% |
+
+Detection mAP — DETR on COCO val2017:
+
+| Fixation | mAP@.5:.95 |
+|---|---|
+| `var_main_object` | 8.72% |
+| `var_gradient` | 6.72% |
+| `var_center` | 5.80% |
+| `var_random` | 4.13% |
+| `const` | 3.58% |
+
+**TODO: rerun above with `fov_index=2` (54°) for all off-center methods once the FOV fix is implemented, to get clean comparisons unaffected by the boundary artifact.**
+
+### Note on `var_main_object` Circularity
+
+`var_main_object` uses DETR to select the fixation point, and the same DETR model is used for detection evaluation. This means the fixation selection and evaluation are not independent — DETR naturally scores well when fixated on an object it already detected. The detection mAP advantage for `var_main_object` should be interpreted with this in mind. A cleaner experiment would use a separate model (e.g., a saliency model or human gaze data) for fixation selection and DETR only for evaluation.
