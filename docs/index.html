@@ -792,8 +792,8 @@
 
           <figure class="wide">
             <div class="image-stack">
-              <img src="data/filter_comparison_42_30d.png" alt="30-degree foveated filter comparison showing black unsupported regions for off-center fixation">
-              <img src="data/filter_comparison_42_54d.png" alt="54-degree foveated filter comparison with reduced black unsupported regions">
+              <img src="assets/images/filter_comparison_42_30d.png" alt="30-degree foveated filter comparison showing black unsupported regions for off-center fixation">
+              <img src="assets/images/filter_comparison_42_54d.png" alt="54-degree foveated filter comparison with reduced black unsupported regions">
             </div>
             <figcaption><strong>Figure 2.</strong> Field-of-view artifact diagnostic. At 30 degrees, off-center fixation can leave parts of the rectangular image outside the circular sampling support, producing black unsupported regions. At 54 degrees, the same image has much better coverage. This helps explain why off-center policies are at a disadvantage in the 30-degree run, although 54 degrees is also a different sampling regime.</figcaption>
           </figure>
@@ -801,7 +801,7 @@
           <p>The 54-degree diagnostic supports this concern. DeepGaze rises from 61.00% in the 30-degree run to 64.44% in the 54-degree run, consistent with reduced black boundary artifacts. But the 54-degree run used only 100 images and has uneven question counts: uniform and gradient each have 653 questions, DeepGaze has 617, DETR has 276, and center/random have 211. We therefore use it as an engineering diagnostic, not as the primary quantitative conclusion.</p>
 
           <figure class="wide">
-            <img src="data/filter_comparison_1757_54d_vqa.png" alt="Qualitative VQA comparison for image 1757 across foveated filtering strategies">
+            <img src="assets/images/filter_comparison_1757_54d_vqa.png" alt="Qualitative VQA comparison for image 1757 across foveated filtering strategies">
             <figcaption><strong>Figure 3.</strong> A qualitative VQA example shows why one fixation can be brittle. In image 1757, the four questions ask about wine color, scene type, clothing color, and a shirt letter. The best evidence is not always in the same place. Center achieves 97.5% image-level VQA accuracy, DeepGaze and uniform reach 72.5%, while gradient, DETR, and random fail on different localized or contextual cues.</figcaption>
           </figure>
 
