@@ -158,9 +158,14 @@ def main():
     from inference.deepgaze.deepgaze_runner import DeepGazeIIERunner
     from inference.vilt.vilt_runner import ViLTRunner
     from fixation.deepgaze.fixation_selector import select_fixation_points
+    from fixation.faster_rcnn.predict_fixations import FasterRCNNFixationRunner
 
-    print("Loading DETR...", flush=True)
+    print("Loading DETR (evaluation only)...", flush=True)
     detr = DETRRunner(model_path=args.detr_model, device=args.device)
+    # Faster R-CNN is used for var_detr fixation selection to avoid circularity
+    # with the DETR evaluation model.
+    print("Loading Faster R-CNN (fixation selection)...", flush=True)
+    frcnn_fixation = FasterRCNNFixationRunner(device=args.device)
     print("Loading DeepGaze...", flush=True)
     deepgaze = DeepGazeIIERunner(device=args.device)
     print("Loading ViLT...", flush=True)
@@ -208,15 +213,8 @@ def main():
 
             detr_json = detr_root / img_path.with_suffix(".json").name
             if not detr_json.exists():
-                dets = sorted(detr.predict(arr), key=lambda d: d["score"], reverse=True)
-                if dets:
-                    bx, by, bw, bh = dets[0]["bbox"]
-                    cy, cx = int(by + bh / 2), int(bx + bw / 2)
-                    score = dets[0]["score"]
-                else:
-                    cy, cx, score = h // 2, w // 2, 0.0
-                write_fixation_json(detr_json, arr.shape,
-                                    [{"obj_id": 0, "centroid": [cy, cx], "score": score}])
+                fixations = frcnn_fixation.predict_fixations(arr, num_fixations=1)
+                write_fixation_json(detr_json, arr.shape, fixations)
 
             deepgaze_json = deepgaze_root / img_path.with_suffix(".json").name
             if not deepgaze_json.exists():
