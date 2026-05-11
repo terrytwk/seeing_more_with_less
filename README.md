@@ -637,6 +637,29 @@ python scripts/visualize_filter_comparison.py \
 
 ---
 
+## Project Blog / GitHub Pages
+
+The 6.8300 final project blog is packaged as a static GitHub Pages site under:
+
+```text
+docs/
+```
+
+To deploy it from this repository:
+
+1. Push the `dev` branch to GitHub.
+2. In GitHub, open **Settings -> Pages**.
+3. Set **Source** to **Deploy from a branch**.
+4. Set **Branch** to `dev` and **Folder** to `/docs`.
+
+The project page should then be available at:
+
+```text
+https://terrytwk.github.io/seeing_more_with_less/
+```
+
+---
+
 ## Citation
 
 If you find this work useful in your research, please cite:
