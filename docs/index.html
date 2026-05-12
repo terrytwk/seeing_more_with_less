@@ -630,7 +630,7 @@
           <p class="section-kicker">Experiments</p>
           <h2>VQAv2 with ViLT under a 3% pixel budget.</h2>
           <p>We reproduce one SMwL evaluation protocol: ViLT on VQAv2 validation questions paired with COCO val2014 images <a class="cite" href="#ref-smwl">[1]</a> <a class="cite" href="#ref-vilt">[5]</a> <a class="cite" href="#ref-vqa">[6]</a>. We use HuggingFace <code>ViltProcessor</code> and <code>ViltForQuestionAnswering</code> with the <code>dandelin/vilt-b32-finetuned-vqa</code> checkpoint. Predictions are answer-class logits mapped through the model answer vocabulary, then normalized and scored with VQA-style soft accuracy against ten human answers <a class="cite" href="#ref-vqa">[6]</a>.</p>
-          <p>The main run uses 30-degree FOV, 3% sample density, 750 images, and 3,904 VQAv2 questions per condition. We use 30 degrees because it matches the FOV setting used for the SMwL-style baseline comparison. However, once the fixation point moves away from the image center, the circular foveated sampling support may no longer cover the full rectangular image. Pixels outside that support are blocked out, which means off-center methods can effectively receive fewer usable pixels than center fixation or uniform sampling. This makes the 30-degree comparison unfair to off-center fixation policies in a way that is caused by filtering, not by VQA evaluation. To see how much this artifact matters, we also ran a 54-degree FOV diagnostic. The wider FOV reduces black boundary artifacts, but it is biologically less faithful to the tighter foveal-view setup and was more computationally expensive to filter, so we could only run it on 100 images.</p>
+          <p>The main run uses 30-degree FOV, 3% sample density, 750 images, and 3,904 VQAv2 questions per condition. We use 30 degrees because it matches the FOV setting used for the SMwL-style baseline comparison. We also ran a 54-degree field-of-view coverage diagnostic on 100 images to inspect a reconstruction artifact that can appear when the fovea moves off center.</p>
           <p>Experiments ran on MIT ORCD resources with 32 CPU cores, an NVIDIA L40S GPU, 512 GB memory, and six-hour jobs. Most wall time was spent generating filtered images rather than running ViLT inference.</p>
         </section>
 
@@ -641,29 +641,27 @@
 
           <figure>
             <img src="assets/images/vqa_accuracy_30d.png" alt="Bar chart of 30-degree VQAv2 accuracy across center, uniform, DeepGaze, DETR, gradient, and random sampling strategies">
-            <figcaption><strong>Figure 2.</strong> Main quantitative result: ViLT/VQAv2 accuracy at 3% sample density and 30-degree FOV. The ordering is center foveation (62.34%) ~= uniform sampling (62.11%) &gt; DeepGaze (61.00%) &gt; DETR (60.37%) &gt; gradient (58.05%) &gt; random (56.58%). Approximate 95% intervals are about +/-1.5 points for each condition, so the center-uniform-DeepGaze gaps should be treated as small, while the random gap is large.</figcaption>
+            <figcaption><strong>Figure 2.</strong> Main quantitative result: ViLT/VQAv2 accuracy at 3% sample density and 30-degree FOV. Center and uniform are nearly tied, adaptive strategies sit in the middle, and random fixation is clearly worst.</figcaption>
           </figure>
 
-          <table aria-label="Thirty-degree VQA results with approximate confidence intervals">
+          <table aria-label="Thirty-degree VQA effect sizes with approximate confidence intervals">
             <thead>
               <tr>
                 <th>Condition</th>
-                <th>Accuracy</th>
-                <th>Approx. 95% CI</th>
                 <th>Delta vs. center</th>
-                <th>Questions</th>
+                <th>Approx. 95% CI width</th>
+                <th>Interpretation</th>
               </tr>
             </thead>
             <tbody>
-              <tr><td>Center</td><td>62.34%</td><td>+/- 1.52</td><td>0.00</td><td>3,904</td></tr>
-              <tr><td>Uniform</td><td>62.11%</td><td>+/- 1.52</td><td>-0.24</td><td>3,904</td></tr>
-              <tr><td>DeepGaze</td><td>61.00%</td><td>+/- 1.53</td><td>-1.34</td><td>3,904</td></tr>
-              <tr><td>DETR</td><td>60.37%</td><td>+/- 1.53</td><td>-1.97</td><td>3,904</td></tr>
-              <tr><td>Gradient</td><td>58.05%</td><td>+/- 1.55</td><td>-4.29</td><td>3,904</td></tr>
-              <tr><td>Random</td><td>56.58%</td><td>+/- 1.55</td><td>-5.77</td><td>3,904</td></tr>
+              <tr><td>Uniform</td><td>-0.24</td><td>+/- 1.52</td><td>Effectively tied with center on this subset.</td></tr>
+              <tr><td>DeepGaze</td><td>-1.34</td><td>+/- 1.53</td><td>Best adaptive policy, but only a small gap from center.</td></tr>
+              <tr><td>DETR</td><td>-1.97</td><td>+/- 1.53</td><td>Moderate drop from center.</td></tr>
+              <tr><td>Gradient</td><td>-4.29</td><td>+/- 1.55</td><td>Meaningfully worse than center.</td></tr>
+              <tr><td>Random</td><td>-5.77</td><td>+/- 1.55</td><td>Large loss from arbitrary fixation.</td></tr>
             </tbody>
           </table>
-          <p class="small-note"><em>Table 1.</em> Approximate intervals use a binomial standard-error calculation from the aggregate VQA score and question count. They are not a substitute for a paired bootstrap over per-question scores, but they show which effects are large enough to trust from this subset.</p>
+          <p class="small-note"><em>Table 1.</em> The figure shows the raw accuracies; this table isolates the effect sizes that matter for interpretation. Approximate intervals use a binomial standard-error calculation from the aggregate VQA score and 3,904 questions per condition. They are not a substitute for a paired bootstrap over per-question scores.</p>
 
           <p>The result is mixed but informative. Random fixation is 5.77 points below center, so the foveated representation is sensitive to where the high-resolution region lands. DeepGaze recovers much of that loss, improving over random by 4.42 points. But the center and uniform baselines remain stronger. For VQA, preserving a little evidence everywhere can be more robust than committing the fovea to one visually salient or object-centered region.</p>
 
@@ -683,12 +681,12 @@
 
           <figure>
             <img src="assets/images/fov_comparison.png" alt="Side-by-side field-of-view comparison showing 54 degrees without black corners and 30 degrees with a black corner outside the circular support">
-            <figcaption><strong>Figure 4.</strong> Field-of-view artifact diagnostic. At 30 degrees, an off-center fixation can leave part of the rectangular image outside the circular FOV support, blocking out pixels as black. At 54 degrees, the wider support covers the same image more fully. This helps explain why 30-degree off-center fixation can receive fewer usable pixels than center fixation or uniform sampling.</figcaption>
+            <figcaption><strong>Figure 4.</strong> Field-of-view coverage diagnostic. In this DeepGaze-fixated example, the 30-degree reconstruction leaves a black corner because the shifted fixation-centered sampling support does not fully cover the rectangular output. The 54-degree version fixes that visible coverage failure.</figcaption>
           </figure>
 
-          <p>The image-42 diagnostic lets us put a number on the artifact. Using a near-black pixel threshold on the image panels, the 30-degree comparison contains about 15.5% black pixels for DeepGaze, 6.6% for gradient, and 16.5% for random, while center and uniform have essentially none. The 54-degree version reduces the measured black fraction to roughly 0% for all panels. This does not prove that every off-center example has the same loss, but it shows that the nominal 3% budget can become a smaller usable visual budget when the fovea moves.</p>
+          <p>The black-corner failure in Figure 4 comes from the reconstruction geometry rather than the VQA model. The filtering code samples around a fixation-centered support, then uses cubic interpolation to fill unsampled output pixels. When fixation moves far from the image center under the 30-degree setting, that shifted support may no longer span the full rectangular crop; a corner can fall outside the interpolation support and render as black. In that case, an off-center policy is being judged on both fixation quality and an avoidable coverage failure. The 54-degree version fixes the visible failure in Figure 4, but it also changes the sampling regime and required enough additional image-filtering time that we only ran it as a smaller diagnostic.</p>
 
-          <p>The 54-degree diagnostic supports the boundary-artifact concern. The full 54-degree summary is: uniform 65.76% on 653 questions, DeepGaze 64.44% on 617, gradient 64.35% on 653, DETR 61.49% on 276, center 59.24% on 211, and random 58.29% on 211. DeepGaze rises from 61.00% in the 30-degree run to 64.44% in this wider-FOV run, consistent with reduced unsupported regions. But the question counts are uneven because not every condition had the same completed filtered-image set, so this is an artifact diagnostic rather than a clean leaderboard.</p>
+          <p>The aggregate 54-degree summary is therefore suggestive rather than decisive: uniform reaches 65.76% on 653 questions, DeepGaze 64.44% on 617, gradient 64.35% on 653, DETR 61.49% on 276, center 59.24% on 211, and random 58.29% on 211. DeepGaze rises from 61.00% in the 30-degree run to 64.44% in this wider-FOV run, which is consistent with some 30-degree off-center cases being hurt by reconstruction coverage. But the uneven question counts prevent a fair ranking, so the 54-degree run should be read as a diagnostic for the filtering artifact, not as the main performance comparison.</p>
 
           <figure>
             <img src="assets/images/filter_comparison_1757_54d_vqa.png" alt="Qualitative VQA comparison for image 1757 across foveated filtering strategies">
