@@ -671,6 +671,15 @@
             <img src="assets/images/vqa_answer_type_30d.png" alt="Grouped bar chart of VQAv2 answer-type accuracy for number, other, and yes/no questions across sampling strategies">
             <figcaption><strong>Figure 3.</strong> Answer-type breakdown for the 30-degree run. Number questions are hardest, and uniform sampling is slightly best on number questions, consistent with counting requiring broad spatial coverage. Yes/no questions are least sensitive to fixation.</figcaption>
           </figure>
+
+          <h3>Detection: fixation placement affects how much structure survives</h3>
+          <p>As a complementary analysis, we evaluated how much detectable structure each fixation strategy preserves, using a pretrained DETR model applied to filtered COCO val2017 images. This is a different experiment from the paper's detection setup, which trains models from scratch on foveated data — our version is better read as a probe of information retention across fixation strategies rather than a replication of the paper's numbers.</p>
+          <p>The ordering was consistent across all checkpoints of our evaluation: object-detection-guided fixation (placing the fovea on the highest-confidence detected object) preserved the most detectable structure, all foveated conditions outperformed uniform sampling, and uniform sampling was last. The result is intuitive — if the fovea is placed on the most salient object in the scene, that object is sampled at high resolution, which directly benefits a detector evaluating that same image.</p>
+
+          <div class="callout warning">
+            <span class="label">Methodological note</span>
+            <p>This detection analysis uses a pretrained full-resolution DETR applied zero-shot to filtered validation images — not a model trained on foveated data as in the paper. Absolute mAP numbers are not comparable to the paper's detection table. The relative ordering across fixation strategies is the meaningful signal.</p>
+          </div>
         </section>
 
         <section id="analysis">
@@ -704,7 +713,7 @@
           <h2>The result is a controlled subset study, not a full reproduction.</h2>
           <p>First, our scale is much smaller than the likely SMwL evaluation scale. SMwL states that ViLT is evaluated on the VQAv2 validation split, but does not specify the exact evaluated counts in the main text <a class="cite" href="#ref-smwl">[1]</a>. If it used the standard VQAv2 validation set, that corresponds to roughly 40,504 images and 214,354 questions <a class="cite" href="#ref-vqa">[6]</a>. Our main 30-degree run uses 750 images and 3,904 questions, and our 54-degree diagnostic uses 100 images with uneven completion across methods. That can explain why our center-versus-uniform gap is only 0.24 points rather than the roughly 2-point gap reported by SMwL.</p>
           <p>Second, 30-degree and 54-degree FOV answer different filtering questions. The 30-degree run is closest to the paper-style setup, but it creates unfair black-boundary artifacts for off-center fixation because the circular FOV support can fail to cover the rectangular image. The 54-degree run reduces those artifacts and makes off-center fixation visually more comparable, but it is less biologically faithful to the tighter foveal-view setting, changes the sampling tradeoff, and was computationally heavier to generate. Because of this filtering cost, we only ran 100 images at 54 degrees.</p>
-          <p>Third, we only report ViLT/VQAv2 results. Object detection evaluation was not completed, and random fixation should ideally be averaged over multiple seeds. Finally, all tested adaptive policies are image-conditioned but not question-conditioned, which is exactly the setting where VQA can expose failures.</p>
+          <p>Third, our detection analysis uses a pretrained model applied zero-shot to a preliminary subset of filtered images, rather than models trained from scratch on foveated data as in the paper. The relative ordering across fixation strategies is directional. Random fixation should also ideally be averaged over multiple seeds. Finally, all tested adaptive policies are image-conditioned but not question-conditioned, which is exactly the setting where VQA can expose failures.</p>
         </section>
 
         <section id="conclusion">
