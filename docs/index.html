@@ -44,6 +44,12 @@
       text-underline-offset: 0.18em;
     }
 
+    .cite {
+      white-space: nowrap;
+      font-size: 0.86em;
+      font-weight: 650;
+    }
+
     img {
       display: block;
       max-width: 100%;
@@ -83,8 +89,8 @@
       max-width: 980px;
       margin: 0;
       font-family: ui-serif, Georgia, Cambria, "Times New Roman", serif;
-      font-size: clamp(3rem, 9vw, 7.3rem);
-      line-height: 0.96;
+      font-size: clamp(2.25rem, 5.2vw, 4.4rem);
+      line-height: 1.02;
       letter-spacing: 0;
       font-weight: 700;
     }
@@ -211,14 +217,14 @@
     h2 {
       margin: 0 0 18px;
       font-family: ui-serif, Georgia, Cambria, "Times New Roman", serif;
-      font-size: clamp(1.9rem, 3.6vw, 3rem);
-      line-height: 1.12;
+      font-size: clamp(1.55rem, 2.4vw, 2.2rem);
+      line-height: 1.18;
       letter-spacing: 0;
     }
 
     h3 {
       margin: 32px 0 10px;
-      font-size: 1.12rem;
+      font-size: 1.05rem;
       line-height: 1.25;
     }
 
@@ -507,12 +513,13 @@
 
       <div>
         <h1>Where Should a Foveated Vision Model Look?</h1>
-        <p class="subtitle">We extend <em>Seeing More with Less</em> by moving the fovea: center, random, gradient, detector, and human-gaze-style fixation under the same 3% pixel budget.</p>
+        <p class="subtitle">We extend the CVPR 2025 research paper <em>Seeing More with Less</em> by moving the fovea: center, random, gradient, detector, and human-gaze-style fixation under the same 3% pixel budget.</p>
       </div>
 
       <div class="byline">
         <span><strong>Authors:</strong> Tae Wook (Terry) Kim, Francis Liu</span>
         <span><strong>Project:</strong> Saliency-Guided Fixation for Foveated Vision Models</span>
+        <span><strong>Code:</strong> <a href="https://github.com/terrytwk/seeing_more_with_less/tree/dev">github.com/terrytwk/seeing_more_with_less</a></span>
       </div>
 
       <div class="hero-figure" aria-label="Pipeline preview diagram">
@@ -560,16 +567,16 @@
           <h2>Foveation tells a model how to spend pixels. It does not tell it where to look.</h2>
           <div class="summary-box">
             <span class="label">Main finding</span>
-            <p><strong>Question.</strong> <em>Seeing More with Less</em> showed that foveated inputs can preserve model performance using only a small fraction of image pixels. We ask the missing fixation question: if the model receives one high-resolution fovea, should that fovea be placed at the center, at a random point, on a salient region, or on a detected object?</p>
-            <p><strong>Answer.</strong> In our clean 30-degree VQAv2 run with ViLT, content-adaptive fixation is better than random fixation, but it does not beat center foveation or uniform sampling. DeepGaze is the best adaptive strategy, followed by DETR and gradient fixation. The result is not that saliency is useless; it is that VQA needs task-conditioned fixation. The same image can ask about a person, a glass, a count, a scene, or a letter, and a single generic saliency point often preserves the wrong evidence.</p>
+            <p><strong>Question.</strong> The CVPR 2025 paper <em>Seeing More with Less</em> showed that foveated inputs can preserve model performance using only a small fraction of image pixels <a class="cite" href="#ref-smwl">[1]</a>. We ask the missing fixation question: if the model receives one high-resolution fovea, should that fovea be placed at the center, at a random point, on a salient region, or on a detected object?</p>
+            <p><strong>Answer.</strong> In our main 30-degree VQAv2 run with ViLT <a class="cite" href="#ref-vilt">[5]</a>, content-adaptive fixation is better than random fixation, but it does not beat center foveation or uniform sampling. DeepGaze is the best adaptive strategy, followed by DETR and gradient fixation. The result is not that saliency is useless; it is that VQA needs task-conditioned fixation. The same image can ask about a person, a glass, a count, a scene, or a letter, and a single generic saliency point often preserves the wrong evidence.</p>
           </div>
         </section>
 
         <section id="motivation">
           <p class="section-kicker">Motivation</p>
           <h2>Foveation solves half of sparse vision.</h2>
-          <p class="lede">Human vision is not uniformly high resolution. The fovea samples densely near fixation, while peripheral vision is coarser. But this biological strategy only works because humans also move their eyes toward useful parts of the scene.</p>
-          <p>Modern vision models usually consume uniformly resized images. <em>Seeing More with Less</em> (SMwL) asks whether a biologically inspired input transform can preserve performance under a fixed pixel budget: sample densely near a fixation point, sample sparsely in the periphery, reconstruct the image, and feed it to an unchanged model. At 3% sample density, SMwL reports that center-foveated variable sampling can outperform information-matched uniform sampling for several VQA and detection settings.</p>
+          <p class="lede">Human vision is not uniformly high resolution. The fovea samples densely near fixation, while peripheral vision is coarser <a class="cite" href="#ref-curcio">[2]</a>. But this biological strategy only works because humans also move their eyes toward useful parts of the scene.</p>
+          <p>Modern vision models usually consume uniformly resized images. The CVPR 2025 paper <em>Seeing More with Less</em> (SMwL) asks whether a biologically inspired input transform can preserve performance under a fixed pixel budget: sample densely near a fixation point, sample sparsely in the periphery, reconstruct the image, and feed it to an unchanged model <a class="cite" href="#ref-smwl">[1]</a>. At 3% sample density, SMwL reports that center-foveated variable sampling can outperform information-matched uniform sampling for several VQA and detection settings <a class="cite" href="#ref-smwl">[1]</a>.</p>
           <p>That result leaves a second question. If the high-resolution region matters, why should it always be centered? Center fixation is technically convenient and often strong because many datasets have photographer bias, but it is not a general policy for attention. Our project isolates fixation selection while holding the foveated sampler and downstream model fixed.</p>
 
           <figure>
@@ -600,71 +607,30 @@
         <section id="related-work">
           <p class="section-kicker">Background</p>
           <h2>The gap in prior work is fixation policy.</h2>
-          <p>SMwL builds on the biological observation that human visual acuity decreases with eccentricity and uses a log-polar, fixation-centered input representation to test whether existing models can operate under reduced visual bandwidth. Its key comparison is between information-matched images: uniform sampling versus variable/foveated sampling with the same total number of sampled pixels.</p>
-          <p>For ViLT on VQAv2 at 3% sample density, SMwL reports 81.1% for full resolution, 64.9% for center-foveated variable sampling, and 62.9% for uniform sampling. This motivates our baseline: if variable sampling is useful because it concentrates resolution, then the fixation point should be a scientifically important degree of freedom.</p>
-          <p>We test three image-conditioned fixation ideas. Gradient fixation is a low-level saliency baseline inspired by classical bottom-up saliency: abrupt changes in intensity or structure may mark informative regions. DETR fixation uses the centroid of the highest-confidence detected object, capturing a semantic but task-agnostic object prior. DeepGaze IIE provides a human-gaze-style saliency point, motivated by work on predicting free-viewing fixations.</p>
-          <p>We also considered DINO-style self-supervised attention as a future fixation source. DINO ViTs have been shown to surface object-like attention maps without segmentation labels, and recent eye-tracking and saccade-inspired studies suggest that self-supervised attention can contain human-like or discriminatively useful fixation structure. We did not include DINO in the final experiment, so it remains a future-work direction rather than a result.</p>
+          <p>SMwL builds on the biological observation that human visual acuity decreases with eccentricity <a class="cite" href="#ref-curcio">[2]</a> and uses a log-polar, fixation-centered input representation to test whether existing models can operate under reduced visual bandwidth <a class="cite" href="#ref-smwl">[1]</a>. Its key comparison is between information-matched images: uniform sampling versus variable/foveated sampling with the same total number of sampled pixels <a class="cite" href="#ref-smwl">[1]</a>.</p>
+          <p>For ViLT on VQAv2 at 3% sample density, SMwL reports 81.1% for full resolution, 64.9% for center-foveated variable sampling, and 62.9% for uniform sampling <a class="cite" href="#ref-smwl">[1]</a>. This motivates our baseline: if variable sampling is useful because it concentrates resolution, then the fixation point should be a scientifically important degree of freedom.</p>
+          <p>The reason to try saliency is not that human gaze should be optimal for every machine task. It is that human visual behavior gives a compact inductive bias for where natural images tend to contain useful structure. This idea is also echoed in self-supervised vision: DINO ViTs can develop object-like attention maps without segmentation labels <a class="cite" href="#ref-dino">[7]</a>, and some of these attention patterns resemble human saliency or gaze behavior <a class="cite" href="#ref-dinoeye">[8]</a>. That convergence suggests that biological attention and machine learning objectives can favor overlapping image structure. Our experiment tests a narrow version of this idea: whether a human-saliency-guided fixation point helps a foveated VQA input under a fixed pixel budget.</p>
+          <p>We compare that saliency hypothesis against simpler alternatives. Gradient fixation is a low-level saliency baseline inspired by classical bottom-up saliency: abrupt changes in intensity or structure may mark informative regions <a class="cite" href="#ref-itti">[3]</a>. DETR fixation uses the centroid of the highest-confidence detected object, capturing a semantic but question-agnostic object prior <a class="cite" href="#ref-detr">[11]</a>. DeepGaze IIE provides the human-gaze-style fixation point, motivated by work on predicting free-viewing fixations <a class="cite" href="#ref-deepgaze">[4]</a>.</p>
         </section>
 
         <section id="method">
           <p class="section-kicker">Method</p>
           <h2>Only the fixation point changes.</h2>
-          <p>We extend the SMwL codebase with external fixation policies. For each image, a policy writes a fixation point; the same foveated sampler then reconstructs a filtered image at 3% sample density. We evaluate each filtered image with the same frozen ViLT VQA model.</p>
+          <p>We extend the SMwL codebase with external fixation policies <a class="cite" href="#ref-smwl">[1]</a>. We keep the two original SMwL baselines, center-foveated variable sampling and information-matched uniform sampling, then add three content-derived fixation policies and a random control. For each foveated condition, a policy writes a fixation point; the same sampler then reconstructs a filtered image at 3% sample density. We evaluate each filtered image with the same frozen ViLT VQA model <a class="cite" href="#ref-vilt">[5]</a>.</p>
 
           <div class="callout">
             <span class="label">Key control</span>
             <p>The central control is matched sample density. Center, random, gradient, DETR, and DeepGaze foveation all use the same nominal 3% pixel budget. Uniform sampling also uses the same sample budget, but distributes samples without a foveal center.</p>
           </div>
 
-          <table aria-label="Fixation policies">
-            <thead>
-              <tr>
-                <th>Condition</th>
-                <th>Fixation source</th>
-                <th>Role in the experiment</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>Center</td>
-                <td>Image center</td>
-                <td>Original center-foveated baseline from SMwL.</td>
-              </tr>
-              <tr>
-                <td>Uniform</td>
-                <td>No fixation point</td>
-                <td>Information-matched non-foveated sampling baseline.</td>
-              </tr>
-              <tr>
-                <td>Random</td>
-                <td>Seeded random point</td>
-                <td>Sanity check for arbitrary high-resolution placement.</td>
-              </tr>
-              <tr>
-                <td>Gradient</td>
-                <td>Peak Sobel gradient after Gaussian blur</td>
-                <td>Cheap low-level saliency baseline.</td>
-              </tr>
-              <tr>
-                <td>DETR</td>
-                <td>Centroid of highest-confidence detection</td>
-                <td>Object-aware but question-agnostic fixation.</td>
-              </tr>
-              <tr>
-                <td>DeepGaze</td>
-                <td>Peak of DeepGaze IIE saliency map</td>
-                <td>Human-gaze-style saliency fixation.</td>
-              </tr>
-            </tbody>
-          </table>
-          <p class="small-note"><em>Table 1.</em> Fixation policies tested in the current implementation. The downstream model is frozen; the intervention is only where the foveated sampler is centered.</p>
+          <p>We compare six conditions. <strong>Center</strong> is the SMwL foveated baseline, with highest sample density at the image center. <strong>Uniform</strong> uses the same sample budget without a foveal center. <strong>Random</strong> is a seeded arbitrary fixation control. <strong>Gradient</strong> picks the peak Sobel gradient after Gaussian blur. <strong>DETR</strong> fixates the centroid of the highest-confidence detected object. <strong>DeepGaze</strong> fixates the peak of a DeepGaze IIE saliency map.</p>
         </section>
 
         <section id="experiments">
           <p class="section-kicker">Experiments</p>
           <h2>VQAv2 with ViLT under a 3% pixel budget.</h2>
-          <p>We reproduce one SMwL evaluation protocol: ViLT on VQAv2 validation questions paired with COCO val2014 images. We use HuggingFace <code>ViltProcessor</code> and <code>ViltForQuestionAnswering</code> with the <code>dandelin/vilt-b32-finetuned-vqa</code> checkpoint. Predictions are answer-class logits mapped through the model answer vocabulary, then normalized and scored with VQA-style soft accuracy against ten human answers.</p>
-          <p>The main run uses 30-degree FOV, 3% sample density, 750 images, and 3,904 VQAv2 questions per condition. This is the clean comparison because every condition is evaluated on the same number of questions. We also ran a 54-degree FOV diagnostic on 100 images. That run is useful for artifact analysis, but its condition-level question counts are uneven, so it should not be treated as the primary ranking.</p>
+          <p>We reproduce one SMwL evaluation protocol: ViLT on VQAv2 validation questions paired with COCO val2014 images <a class="cite" href="#ref-smwl">[1]</a> <a class="cite" href="#ref-vilt">[5]</a> <a class="cite" href="#ref-vqa">[6]</a>. We use HuggingFace <code>ViltProcessor</code> and <code>ViltForQuestionAnswering</code> with the <code>dandelin/vilt-b32-finetuned-vqa</code> checkpoint. Predictions are answer-class logits mapped through the model answer vocabulary, then normalized and scored with VQA-style soft accuracy against ten human answers <a class="cite" href="#ref-vqa">[6]</a>.</p>
+          <p>The main run uses 30-degree FOV, 3% sample density, 750 images, and 3,904 VQAv2 questions per condition. We use 30 degrees because it matches the FOV setting used for the SMwL-style baseline comparison. However, once the fixation point moves away from the image center, the circular foveated sampling support may no longer cover the full rectangular image. Pixels outside that support are blocked out, which means off-center methods can effectively receive fewer usable pixels than center fixation or uniform sampling. This makes the 30-degree comparison unfair to off-center fixation policies in a way that is caused by filtering, not by VQA evaluation. To see how much this artifact matters, we also ran a 54-degree FOV diagnostic. The wider FOV reduces black boundary artifacts, but it is biologically less faithful to the tighter foveal-view setup and was more computationally expensive to filter, so we could only run it on 100 images.</p>
           <p>Experiments ran on MIT ORCD resources with 32 CPU cores, an NVIDIA L40S GPU, 512 GB memory, and six-hour jobs. Most wall time was spent generating filtered images rather than running ViLT inference.</p>
         </section>
 
@@ -673,136 +639,60 @@
           <h2>Content-adaptive fixation helps, but not enough to beat center or uniform.</h2>
           <p>The 30-degree run gives the cleanest answer to the main question. DeepGaze, DETR, and gradient fixation all outperform random fixation, so fixation placement clearly matters. But none of the content-adaptive policies outperform center foveation or uniform sampling.</p>
 
-          <table aria-label="30 degree VQA results">
+          <figure>
+            <img src="assets/images/vqa_accuracy_30d.png" alt="Bar chart of 30-degree VQAv2 accuracy across center, uniform, DeepGaze, DETR, gradient, and random sampling strategies">
+            <figcaption><strong>Figure 2.</strong> Main quantitative result: ViLT/VQAv2 accuracy at 3% sample density and 30-degree FOV. The ordering is center foveation (62.34%) ~= uniform sampling (62.11%) &gt; DeepGaze (61.00%) &gt; DETR (60.37%) &gt; gradient (58.05%) &gt; random (56.58%). Approximate 95% intervals are about +/-1.5 points for each condition, so the center-uniform-DeepGaze gaps should be treated as small, while the random gap is large.</figcaption>
+          </figure>
+
+          <table aria-label="Thirty-degree VQA results with approximate confidence intervals">
             <thead>
               <tr>
                 <th>Condition</th>
                 <th>Accuracy</th>
-                <th>Delta vs center</th>
-                <th>Delta vs uniform</th>
+                <th>Approx. 95% CI</th>
+                <th>Delta vs. center</th>
                 <th>Questions</th>
               </tr>
             </thead>
             <tbody>
-              <tr>
-                <td>Center foveation</td>
-                <td>62.34%</td>
-                <td>0.00</td>
-                <td>+0.24</td>
-                <td>3,904</td>
-              </tr>
-              <tr>
-                <td>Uniform sampling</td>
-                <td>62.11%</td>
-                <td>-0.24</td>
-                <td>0.00</td>
-                <td>3,904</td>
-              </tr>
-              <tr>
-                <td>DeepGaze foveation</td>
-                <td>61.00%</td>
-                <td>-1.34</td>
-                <td>-1.11</td>
-                <td>3,904</td>
-              </tr>
-              <tr>
-                <td>DETR foveation</td>
-                <td>60.37%</td>
-                <td>-1.97</td>
-                <td>-1.73</td>
-                <td>3,904</td>
-              </tr>
-              <tr>
-                <td>Gradient foveation</td>
-                <td>58.05%</td>
-                <td>-4.29</td>
-                <td>-4.05</td>
-                <td>3,904</td>
-              </tr>
-              <tr>
-                <td>Random foveation</td>
-                <td>56.58%</td>
-                <td>-5.77</td>
-                <td>-5.53</td>
-                <td>3,904</td>
-              </tr>
+              <tr><td>Center</td><td>62.34%</td><td>+/- 1.52</td><td>0.00</td><td>3,904</td></tr>
+              <tr><td>Uniform</td><td>62.11%</td><td>+/- 1.52</td><td>-0.24</td><td>3,904</td></tr>
+              <tr><td>DeepGaze</td><td>61.00%</td><td>+/- 1.53</td><td>-1.34</td><td>3,904</td></tr>
+              <tr><td>DETR</td><td>60.37%</td><td>+/- 1.53</td><td>-1.97</td><td>3,904</td></tr>
+              <tr><td>Gradient</td><td>58.05%</td><td>+/- 1.55</td><td>-4.29</td><td>3,904</td></tr>
+              <tr><td>Random</td><td>56.58%</td><td>+/- 1.55</td><td>-5.77</td><td>3,904</td></tr>
             </tbody>
           </table>
-          <p class="small-note"><em>Table 2.</em> Main result: ViLT/VQAv2 accuracy at 3% sample density and 30-degree FOV. Ordering is center ~= uniform &gt; DeepGaze &gt; DETR &gt; gradient &gt; random.</p>
+          <p class="small-note"><em>Table 1.</em> Approximate intervals use a binomial standard-error calculation from the aggregate VQA score and question count. They are not a substitute for a paired bootstrap over per-question scores, but they show which effects are large enough to trust from this subset.</p>
 
           <p>The result is mixed but informative. Random fixation is 5.77 points below center, so the foveated representation is sensitive to where the high-resolution region lands. DeepGaze recovers much of that loss, improving over random by 4.42 points. But the center and uniform baselines remain stronger. For VQA, preserving a little evidence everywhere can be more robust than committing the fovea to one visually salient or object-centered region.</p>
 
           <h3>Question type matters</h3>
-          <table aria-label="VQA answer type breakdown">
-            <thead>
-              <tr>
-                <th>Condition</th>
-                <th>Number</th>
-                <th>Other</th>
-                <th>Yes/No</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>Center</td>
-                <td>40.70%</td>
-                <td>54.21%</td>
-                <td>82.14%</td>
-              </tr>
-              <tr>
-                <td>Uniform</td>
-                <td>40.97%</td>
-                <td>54.05%</td>
-                <td>81.60%</td>
-              </tr>
-              <tr>
-                <td>DeepGaze</td>
-                <td>38.37%</td>
-                <td>52.94%</td>
-                <td>81.09%</td>
-              </tr>
-              <tr>
-                <td>DETR</td>
-                <td>36.99%</td>
-                <td>52.67%</td>
-                <td>80.25%</td>
-              </tr>
-              <tr>
-                <td>Gradient</td>
-                <td>34.39%</td>
-                <td>49.47%</td>
-                <td>79.28%</td>
-              </tr>
-              <tr>
-                <td>Random</td>
-                <td>34.48%</td>
-                <td>47.50%</td>
-                <td>77.87%</td>
-              </tr>
-            </tbody>
-          </table>
-          <p class="small-note"><em>Table 3.</em> Answer-type breakdown for the 30-degree run. Number questions are hardest, and uniform sampling is slightly best on number questions, consistent with counting requiring broad spatial coverage.</p>
+          <p>VQAv2 groups questions by answer type. <strong>Yes/no</strong> questions ask for binary judgments and are often answerable from coarse scene cues. <strong>Number</strong> questions require counts, which can depend on evidence spread across the image. <strong>Other</strong> questions include object names, attributes, colors, materials, actions, and text-like answers, so they often require localized semantic detail.</p>
+          <figure>
+            <img src="assets/images/vqa_answer_type_30d.png" alt="Grouped bar chart of VQAv2 answer-type accuracy for number, other, and yes/no questions across sampling strategies">
+            <figcaption><strong>Figure 3.</strong> Answer-type breakdown for the 30-degree run. Number questions are hardest, and uniform sampling is slightly best on number questions, consistent with counting requiring broad spatial coverage. Yes/no questions are least sensitive to fixation.</figcaption>
+          </figure>
         </section>
 
         <section id="analysis">
           <p class="section-kicker">Analysis</p>
           <h2>The failure mode is not simply bad saliency.</h2>
-          <p>Center fixation is strong for a mundane but important reason: many COCO/VQAv2 images are photographer-composed around central subjects, and many questions ask about those subjects. Uniform sampling is strong for a different reason: it never chooses the wrong fixation point. It loses fine detail, but it preserves weak evidence across the image, which helps for scene context, counts, and secondary objects.</p>
+          <p>Center fixation is strong for a mundane but important reason: we hypothesize that many COCO/VQAv2 images are photographer-composed around central subjects, and many questions ask about those subjects. This center bias means a fixed central fovea is often a surprisingly good prior, even though it is not an active attention policy. Uniform sampling is strong for a different reason: it never chooses the wrong fixation point. It loses fine detail, but it preserves weak evidence across the image, which helps for scene context, counts, and secondary objects.</p>
           <p>DeepGaze is the best content-adaptive policy, which supports the hypothesis that human-attention-style saliency often lands near useful evidence. But VQA is not free viewing. The relevant region is determined by the question, and the same image can require different fixations for different questions.</p>
 
-          <figure class="wide">
-            <div class="image-stack">
-              <img src="assets/images/filter_comparison_42_30d.png" alt="30-degree foveated filter comparison showing black unsupported regions for off-center fixation">
-              <img src="assets/images/filter_comparison_42_54d.png" alt="54-degree foveated filter comparison with reduced black unsupported regions">
-            </div>
-            <figcaption><strong>Figure 2.</strong> Field-of-view artifact diagnostic. At 30 degrees, off-center fixation can leave parts of the rectangular image outside the circular sampling support, producing black unsupported regions. At 54 degrees, the same image has much better coverage. This helps explain why off-center policies are at a disadvantage in the 30-degree run, although 54 degrees is also a different sampling regime.</figcaption>
+          <figure>
+            <img src="assets/images/fov_comparison.png" alt="Side-by-side field-of-view comparison showing 54 degrees without black corners and 30 degrees with a black corner outside the circular support">
+            <figcaption><strong>Figure 4.</strong> Field-of-view artifact diagnostic. At 30 degrees, an off-center fixation can leave part of the rectangular image outside the circular FOV support, blocking out pixels as black. At 54 degrees, the wider support covers the same image more fully. This helps explain why 30-degree off-center fixation can receive fewer usable pixels than center fixation or uniform sampling.</figcaption>
           </figure>
 
-          <p>The 54-degree diagnostic supports this concern. DeepGaze rises from 61.00% in the 30-degree run to 64.44% in the 54-degree run, consistent with reduced black boundary artifacts. But the 54-degree run used only 100 images and has uneven question counts: uniform and gradient each have 653 questions, DeepGaze has 617, DETR has 276, and center/random have 211. We therefore use it as an engineering diagnostic, not as the primary quantitative conclusion.</p>
+          <p>The image-42 diagnostic lets us put a number on the artifact. Using a near-black pixel threshold on the image panels, the 30-degree comparison contains about 15.5% black pixels for DeepGaze, 6.6% for gradient, and 16.5% for random, while center and uniform have essentially none. The 54-degree version reduces the measured black fraction to roughly 0% for all panels. This does not prove that every off-center example has the same loss, but it shows that the nominal 3% budget can become a smaller usable visual budget when the fovea moves.</p>
 
-          <figure class="wide">
+          <p>The 54-degree diagnostic supports the boundary-artifact concern. The full 54-degree summary is: uniform 65.76% on 653 questions, DeepGaze 64.44% on 617, gradient 64.35% on 653, DETR 61.49% on 276, center 59.24% on 211, and random 58.29% on 211. DeepGaze rises from 61.00% in the 30-degree run to 64.44% in this wider-FOV run, consistent with reduced unsupported regions. But the question counts are uneven because not every condition had the same completed filtered-image set, so this is an artifact diagnostic rather than a clean leaderboard.</p>
+
+          <figure>
             <img src="assets/images/filter_comparison_1757_54d_vqa.png" alt="Qualitative VQA comparison for image 1757 across foveated filtering strategies">
-            <figcaption><strong>Figure 3.</strong> A qualitative VQA example shows why one fixation can be brittle. In image 1757, the four questions ask about wine color, scene type, clothing color, and a shirt letter. The best evidence is not always in the same place. Center achieves 97.5% image-level VQA accuracy, DeepGaze and uniform reach 72.5%, while gradient, DETR, and random fail on different localized or contextual cues.</figcaption>
+            <figcaption><strong>Figure 5.</strong> A qualitative VQA example shows why one fixation can be brittle. In image 1757, the four questions ask about wine color, scene type, clothing color, and a shirt letter. The best evidence is not always in the same place. Center achieves 97.5% image-level VQA accuracy, DeepGaze and uniform reach 72.5%, while gradient, DETR, and random fail on different localized or contextual cues.</figcaption>
           </figure>
 
           <div class="callout warning">
@@ -814,8 +704,8 @@
         <section id="limitations">
           <p class="section-kicker">Limitations</p>
           <h2>The result is a controlled subset study, not a full reproduction.</h2>
-          <p>First, our scale is much smaller than the likely SMwL evaluation scale. SMwL states that ViLT is evaluated on the VQAv2 validation split, but does not specify the exact evaluated counts in the main text. If it used the standard VQAv2 validation set, that corresponds to roughly 40,504 images and 214,354 questions. Our clean 30-degree run uses 750 images and 3,904 questions, and our 54-degree diagnostic uses 100 images. That can explain why our center-versus-uniform gap is only 0.24 points rather than the roughly 2-point gap reported by SMwL.</p>
-          <p>Second, 30-degree and 54-degree FOV answer different questions. The 30-degree run is cleaner statistically because conditions share the same question count, but it disadvantages off-center fixations when black unsupported regions appear. The 54-degree run reduces that artifact, but it changes the foveal sampling tradeoff and currently lacks matched question counts.</p>
+          <p>First, our scale is much smaller than the likely SMwL evaluation scale. SMwL states that ViLT is evaluated on the VQAv2 validation split, but does not specify the exact evaluated counts in the main text <a class="cite" href="#ref-smwl">[1]</a>. If it used the standard VQAv2 validation set, that corresponds to roughly 40,504 images and 214,354 questions <a class="cite" href="#ref-vqa">[6]</a>. Our main 30-degree run uses 750 images and 3,904 questions, and our 54-degree diagnostic uses 100 images with uneven completion across methods. That can explain why our center-versus-uniform gap is only 0.24 points rather than the roughly 2-point gap reported by SMwL.</p>
+          <p>Second, 30-degree and 54-degree FOV answer different filtering questions. The 30-degree run is closest to the paper-style setup, but it creates unfair black-boundary artifacts for off-center fixation because the circular FOV support can fail to cover the rectangular image. The 54-degree run reduces those artifacts and makes off-center fixation visually more comparable, but it is less biologically faithful to the tighter foveal-view setting, changes the sampling tradeoff, and was computationally heavier to generate. Because of this filtering cost, we only ran 100 images at 54 degrees.</p>
           <p>Third, we only report ViLT/VQAv2 results. Object detection evaluation was not completed, and random fixation should ideally be averaged over multiple seeds. Finally, all tested adaptive policies are image-conditioned but not question-conditioned, which is exactly the setting where VQA can expose failures.</p>
         </section>
 
@@ -824,23 +714,24 @@
           <h2>Foveated models need fixation policies, but generic saliency is not enough.</h2>
           <p>Our experiment separates two parts of efficient vision: how to allocate resolution around a fixation, and how to choose the fixation. The first is the strength of SMwL-style foveated sampling. The second remains open.</p>
           <p>On our VQAv2 subset, adaptive fixation clearly beats random placement, so looking location matters. But DeepGaze, DETR, and gradient fixation do not beat center foveation or uniform sampling. The most defensible interpretation is that VQA requires task-conditioned evidence selection. A human-gaze-style saliency point can be visually plausible and still miss the evidence needed for a particular question.</p>
-          <p>Future work should run the full VQAv2 validation set, evaluate matched 54-degree conditions, measure usable non-black support, and test question-conditioned or multi-fixation scanpaths. Another promising direction is training vision-language models with saliency-guided masking, rather than using saliency only at inference time. Work on saliency-aware masking for contrastive self-supervised learning suggests that masking policies can shape representations by controlling whether foreground and background evidence are preserved or removed.</p>
+          <p>Future work should run the full VQAv2 validation set, evaluate matched 54-degree conditions, measure usable non-black support for every filtered image, and test question-conditioned or multi-fixation scanpaths. A simple next baseline would parse the question for object words and choose the DETR box most compatible with those words, rather than always fixating the highest-confidence object. Another promising direction is training vision-language models with saliency-guided masking, rather than using saliency only at inference time. Work on saliency-aware masking for contrastive self-supervised learning suggests that masking policies can shape representations by controlling whether foreground and background evidence are preserved or removed <a class="cite" href="#ref-saliency-masking">[10]</a>.</p>
         </section>
 
         <section id="references" class="references">
           <p class="section-kicker">References</p>
           <h2>References</h2>
           <ol>
-            <li>Gizdov, A., Ullman, S., and Harari, D. <em>Seeing More with Less: Human-like Representations in Vision Models.</em> CVPR, 2025.</li>
-            <li>Curcio, C. A., Sloan, K. R., Kalina, R. E., and Hendrickson, A. E. <em>Human Photoreceptor Topography.</em> Journal of Comparative Neurology, 1990.</li>
-            <li>Itti, L., Koch, C., and Niebur, E. <em>A Model of Saliency-Based Visual Attention for Rapid Scene Analysis.</em> IEEE TPAMI, 1998.</li>
-            <li>Kummerer, M., Bethge, M., and Wallis, T. S. A. <em>DeepGaze III: Modeling Free-Viewing Human Scanpaths with Deep Learning.</em> Journal of Vision, 2022.</li>
-            <li>Kim, W., Son, B., and Kim, I. <em>ViLT: Vision-and-Language Transformer Without Convolution or Region Supervision.</em> ICML, 2021.</li>
-            <li>Goyal, Y., Khot, T., Summers-Stay, D., Batra, D., and Parikh, D. <em>Making the V in VQA Matter: Elevating the Role of Image Understanding in Visual Question Answering.</em> CVPR, 2017.</li>
-            <li>Caron, M. et al. <em>Emerging Properties in Self-Supervised Vision Transformers.</em> ICCV, 2021.</li>
-            <li>Yamamoto, T., Akahoshi, H., and Kitazawa, S. <em>Emergence of Human-Like Attention in Self-Supervised Vision Transformers: an eye-tracking study.</em> arXiv:2410.22768, 2024.</li>
-            <li>Dallain, M., Rodriguez, L., Perrinet, L. U., and Miramond, B. <em>A Saccade-inspired Approach to Image Classification using Vision Transformer Attention Maps.</em> arXiv:2603.09613, 2026.</li>
-            <li>Chin, Z.-Y., Jiang, C.-M., Huang, C.-C., Chen, P.-Y., and Chiu, W.-C. <em>Masking Improves Contrastive Self-Supervised Learning for ConvNets, and Saliency Tells You Where.</em> WACV, 2024.</li>
+            <li id="ref-smwl">Gizdov, A., Ullman, S., and Harari, D. <a href="https://openaccess.thecvf.com/content/CVPR2025/html/Gizdov_Seeing_More_with_Less_Human-like_Representations_in_Vision_Models_CVPR_2025_paper.html"><em>Seeing More with Less: Human-like Representations in Vision Models.</em></a> CVPR, 2025.</li>
+            <li id="ref-curcio">Curcio, C. A., Sloan, K. R., Kalina, R. E., and Hendrickson, A. E. <a href="https://doi.org/10.1002/cne.902920402"><em>Human Photoreceptor Topography.</em></a> Journal of Comparative Neurology, 1990.</li>
+            <li id="ref-itti">Itti, L., Koch, C., and Niebur, E. <a href="https://doi.org/10.1109/34.730558"><em>A Model of Saliency-Based Visual Attention for Rapid Scene Analysis.</em></a> IEEE TPAMI, 1998.</li>
+            <li id="ref-deepgaze">Linardos, A., Kummerer, M., Press, O., and Bethge, M. <a href="https://openaccess.thecvf.com/content/ICCV2021/html/Linardos_DeepGaze_IIE_Calibrated_Prediction_in_and_Out-of-Domain_for_State-of-the-Art_Saliency_ICCV_2021_paper.html"><em>DeepGaze IIE: Calibrated Prediction in and Out-of-Domain for State-of-the-Art Saliency Modeling.</em></a> ICCV, 2021.</li>
+            <li id="ref-vilt">Kim, W., Son, B., and Kim, I. <a href="https://arxiv.org/abs/2102.03334"><em>ViLT: Vision-and-Language Transformer Without Convolution or Region Supervision.</em></a> ICML, 2021.</li>
+            <li id="ref-vqa">Goyal, Y., Khot, T., Summers-Stay, D., Batra, D., and Parikh, D. <a href="https://openaccess.thecvf.com/content_cvpr_2017/html/Goyal_Making_the_v_CVPR_2017_paper.html"><em>Making the V in VQA Matter: Elevating the Role of Image Understanding in Visual Question Answering.</em></a> CVPR, 2017.</li>
+            <li id="ref-dino">Caron, M. et al. <a href="https://arxiv.org/abs/2104.14294"><em>Emerging Properties in Self-Supervised Vision Transformers.</em></a> ICCV, 2021.</li>
+            <li id="ref-dinoeye">Yamamoto, T., Akahoshi, H., and Kitazawa, S. <a href="https://arxiv.org/html/2410.22768v1"><em>Emergence of Human-Like Attention in Self-Supervised Vision Transformers: an eye-tracking study.</em></a> arXiv:2410.22768, 2024.</li>
+            <li id="ref-dinosaccade">Dallain, M., Rodriguez, L., Perrinet, L. U., and Miramond, B. <a href="https://arxiv.org/abs/2603.09613"><em>A Saccade-inspired Approach to Image Classification using Vision Transformer Attention Maps.</em></a> arXiv:2603.09613, 2026.</li>
+            <li id="ref-saliency-masking">Chin, Z.-Y., Jiang, C.-M., Huang, C.-C., Chen, P.-Y., and Chiu, W.-C. <a href="https://arxiv.org/abs/2309.12757"><em>Masking Improves Contrastive Self-Supervised Learning for ConvNets, and Saliency Tells You Where.</em></a> WACV, 2024.</li>
+            <li id="ref-detr">Carion, N., Massa, F., Synnaeve, G., Usunier, N., Kirillov, A., and Zagoruyko, S. <a href="https://www.ecva.net/papers/eccv_2020/papers_ECCV/html/832_ECCV_2020_paper.php"><em>End-to-End Object Detection with Transformers.</em></a> ECCV, 2020.</li>
           </ol>
         </section>
       </main>
@@ -851,7 +742,7 @@
     </div>
 
     <footer>
-      MIT 6.8300 Advances in Computer Vision, Spring 2026. Code and experiments build on a class-project fork of <em>Seeing More with Less</em>.
+      MIT 6.8300 Advances in Computer Vision, Spring 2026. Code and experiments build on a <a href="https://github.com/terrytwk/seeing_more_with_less/tree/dev">class-project fork</a> of <em>Seeing More with Less</em>.
     </footer>
   </div>
 </body>
