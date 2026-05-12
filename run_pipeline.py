@@ -19,7 +19,8 @@ from fixation.common import dataset_name_from_path, default_fixation_root
 
 FOV_DEG = 30
 BUDGET_PERC = 3
-VARIANTS = ["var_center", "var_random", "var_gradient", "var_detr", "var_deepgaze", "const"]
+BASE_VARIANTS = ["var_center", "var_random", "var_gradient", "var_frcnn", "const"]
+DEEPGAZE_VARIANT = "var_deepgaze"
 TRAILING_IMAGE_ID = re.compile(r"(\d+)$")
 
 
@@ -87,7 +88,8 @@ def print_table(n_images, vqa_evaluation, detection_evaluation, detection_skip_r
     print(f"\n{'='*64}", flush=True)
     print(f"  Results after {n_images} images  [{time.strftime('%H:%M:%S')}]", flush=True)
     print(f"{'='*64}", flush=True)
-    vqa_evaluation.print_report()
+    if vqa_evaluation is not None:
+        vqa_evaluation.print_report()
     if detection_evaluation is None:
         print_detection_skipped(detection_skip_reason)
     else:
@@ -112,6 +114,7 @@ def main():
     parser.add_argument("--filter_pool_threads", type=int, default=0,
                         help="Worker processes per filter variant. Total filter workers ~= variants * this value.")
     parser.add_argument("--max_images",   type=int, default=None)
+    parser.add_argument("--skip_vqa",     action="store_true")
     parser.add_argument("--device",       default="auto")
     args = parser.parse_args()
 
@@ -125,26 +128,9 @@ def main():
     fp_roots = {
         "random":      str(default_fixation_root(images_dir, "random")),
         "gradient":    str(default_fixation_root(images_dir, "gradient")),
-        "detr":        str(default_fixation_root(images_dir, "detr")),
+        "frcnn":       str(default_fixation_root(images_dir, "frcnn")),
         "deepgaze":    str(default_fixation_root(images_dir, "deepgaze")),
     }
-
-    print("Loading VQA data...", flush=True)
-    vqa_evaluation = VQAEvaluation(args.vqa_questions, args.vqa_annotations, VARIANTS)
-
-    detection_evaluation = None
-    detection_skip_reason = None
-    annotations_path = Path(args.annotations) if args.annotations else None
-    if annotations_path and annotations_path.exists():
-        print("Loading COCO annotations...", flush=True)
-        detection_evaluation = ObjectDetectionEvaluation(str(annotations_path), VARIANTS)
-    else:
-        detection_skip_reason = (
-            f"annotation file not found: {annotations_path}"
-            if annotations_path else
-            "no annotation file was provided"
-        )
-        print(f"Skipping COCO detection evaluation: {detection_skip_reason}", flush=True)
 
     print("Generating random fixation JSONs...", flush=True)
     subprocess.run([
@@ -162,14 +148,41 @@ def main():
 
     print("Loading DETR (evaluation only)...", flush=True)
     detr = DETRRunner(model_path=args.detr_model, device=args.device)
-    # Faster R-CNN is used for var_detr fixation selection to avoid circularity
+    # Faster R-CNN is used for var_frcnn fixation selection to avoid circularity
     # with the DETR evaluation model.
     print("Loading Faster R-CNN (fixation selection)...", flush=True)
     frcnn_fixation = FasterRCNNFixationRunner(device=args.device)
     print("Loading DeepGaze...", flush=True)
-    deepgaze = DeepGazeIIERunner(device=args.device)
-    print("Loading ViLT...", flush=True)
-    vilt = ViLTRunner(model_path=args.vilt_model, device=args.device)
+    try:
+        deepgaze = DeepGazeIIERunner(device=args.device)
+    except ModuleNotFoundError:
+        print("  deepgaze_pytorch not installed — skipping var_deepgaze.", flush=True)
+        deepgaze = None
+    vilt = None
+    if not args.skip_vqa:
+        print("Loading ViLT...", flush=True)
+        vilt = ViLTRunner(model_path=args.vilt_model, device=args.device)
+
+    variants = BASE_VARIANTS + ([DEEPGAZE_VARIANT] if deepgaze is not None else [])
+
+    vqa_evaluation = None
+    if not args.skip_vqa:
+        print("Loading VQA data...", flush=True)
+        vqa_evaluation = VQAEvaluation(args.vqa_questions, args.vqa_annotations, variants)
+
+    detection_evaluation = None
+    detection_skip_reason = None
+    annotations_path = Path(args.annotations) if args.annotations else None
+    if annotations_path and annotations_path.exists():
+        print("Loading COCO annotations...", flush=True)
+        detection_evaluation = ObjectDetectionEvaluation(str(annotations_path), variants)
+    else:
+        detection_skip_reason = (
+            f"annotation file not found: {annotations_path}"
+            if annotations_path else
+            "no annotation file was provided"
+        )
+        print(f"Skipping COCO detection evaluation: {detection_skip_reason}", flush=True)
 
     print("Listing images...", flush=True)
     images = sorted(images_dir.glob("*.jpg"))
@@ -181,10 +194,11 @@ def main():
         "var_center":      ("var",   out / "var_center",      None,                    False),
         "var_random":      ("var",   out / "var_random",      fp_roots["random"],      True),
         "var_gradient":    ("var",   out / "var_gradient",    fp_roots["gradient"],    True),
-        "var_detr":        ("var",   out / "var_detr",        fp_roots["detr"],        True),
-        "var_deepgaze":    ("var",   out / "var_deepgaze",    fp_roots["deepgaze"],    True),
+        "var_frcnn":        ("var",   out / "var_frcnn",        fp_roots["frcnn"],       True),
         "const":           ("const", out / "const",           None,                    False),
     }
+    if deepgaze is not None:
+        variant_cfg["var_deepgaze"] = ("var", out / "var_deepgaze", fp_roots["deepgaze"], True)
 
     n_processed = 0
 
@@ -194,7 +208,7 @@ def main():
         print(f"[Batch {batch_num}] Generating gradient + DETR + DeepGaze fixation JSONs...", flush=True)
 
         grad_root = Path(fp_roots["gradient"])
-        detr_root = Path(fp_roots["detr"])
+        detr_root = Path(fp_roots["frcnn"])
         deepgaze_root = Path(fp_roots["deepgaze"])
         grad_root.mkdir(parents=True, exist_ok=True)
         detr_root.mkdir(parents=True, exist_ok=True)
@@ -216,16 +230,17 @@ def main():
                 fixations = frcnn_fixation.predict_fixations(arr, num_fixations=1)
                 write_fixation_json(detr_json, arr.shape, fixations)
 
-            deepgaze_json = deepgaze_root / img_path.with_suffix(".json").name
-            if not deepgaze_json.exists():
-                saliency = deepgaze.predict_probability(arr, centerbias_path=args.deepgaze_centerbias)
-                objects_info = select_fixation_points(
-                    saliency,
-                    num_fixations=1,
-                    min_distance=args.deepgaze_min_distance,
-                    threshold=args.deepgaze_threshold,
-                )
-                write_fixation_json(deepgaze_json, arr.shape, objects_info)
+            if deepgaze is not None:
+                deepgaze_json = deepgaze_root / img_path.with_suffix(".json").name
+                if not deepgaze_json.exists():
+                    saliency = deepgaze.predict_probability(arr, centerbias_path=args.deepgaze_centerbias)
+                    objects_info = select_fixation_points(
+                        saliency,
+                        num_fixations=1,
+                        min_distance=args.deepgaze_min_distance,
+                        threshold=args.deepgaze_threshold,
+                    )
+                    write_fixation_json(deepgaze_json, arr.shape, objects_info)
 
         print(f"[Batch {batch_num}] Launching {len(variant_cfg)} filter variants in parallel...", flush=True)
         t0 = time.time()
@@ -250,7 +265,8 @@ def main():
 
                 if detection_evaluation is not None:
                     detection_evaluation.add_predictions(vname, image_id, detr.predict(arr))
-                vqa_evaluation.add_image_results(vname, image_id, arr, vilt)
+                if vqa_evaluation is not None:
+                    vqa_evaluation.add_image_results(vname, image_id, arr, vilt)
 
         n_processed += len(batch)
         print_table(n_processed, vqa_evaluation, detection_evaluation, detection_skip_reason)
@@ -258,7 +274,7 @@ def main():
         with open(results_dir / "partial_results.json", "w") as f:
             json.dump({
                 "n_images": n_processed,
-                "vqa": vqa_evaluation.to_json(),
+                **({"vqa": vqa_evaluation.to_json()} if vqa_evaluation is not None else {}),
                 "det": (
                     detection_evaluation.to_json()
                     if detection_evaluation is not None

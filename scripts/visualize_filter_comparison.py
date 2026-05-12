@@ -16,7 +16,7 @@ DEFAULT_VQA_MODEL = "dandelin/vilt-b32-finetuned-vqa"
 DEFAULT_METHOD_ORDER = [
     "var_center",
     "var_deepgaze",
-    "var_detr",
+    "var_frcnn",
     "var_gradient",
     "var_random",
     "const",
@@ -113,7 +113,7 @@ def method_alias(name):
     aliases = {
         "center": "var_center",
         "deepgaze": "var_deepgaze",
-        "detr": "var_detr",
+        "frcnn": "var_frcnn",
         "gradient": "var_gradient",
         "random": "var_random",
         "uniform": "const",
@@ -126,7 +126,7 @@ def pretty_method_name(method):
     labels = {
         "var_center": "center",
         "var_deepgaze": "deepgaze",
-        "var_detr": "detr",
+        "var_frcnn": "frcnn",
         "var_gradient": "gradient",
         "var_random": "random",
         "const": "uniform",

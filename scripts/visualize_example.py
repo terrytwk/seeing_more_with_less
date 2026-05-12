@@ -26,7 +26,7 @@ def main():
         "var_center\n(paper baseline)": f"{args.filtered_root}/var_center_30d_3perc/Variable/{args.image_id}_oid_999_fpx_320_fpy_213.jpg",
         "var_random\n(our method)": f"{args.filtered_root}/var_random_30d_3perc/Variable/{args.image_id}_oid_0_fpx_495_fpy_38.jpg",
         "var_gradient\n(our method)": f"{args.filtered_root}/var_gradient_30d_3perc/Variable/{args.image_id}_oid_0_fpx_561_fpy_336.jpg",
-        "var_detr\n(our method)": f"{args.filtered_root}/var_detr_30d_3perc/Variable/{args.image_id}_oid_0_fpx_80_fpy_212.jpg",
+        "var_frcnn\n(our method)": f"{args.filtered_root}/var_frcnn_30d_3perc/Variable/{args.image_id}_oid_0_fpx_80_fpy_212.jpg",
         "const/uniform\n(paper baseline)": f"{args.filtered_root}/const_30d_3perc/Constant/{args.image_id}_oid_999_fpx_320_fpy_213.jpg",
     }
 
@@ -34,7 +34,7 @@ def main():
         "var_center\n(paper baseline)": (320, 213),
         "var_random\n(our method)": (495, 38),
         "var_gradient\n(our method)": (561, 336),
-        "var_detr\n(our method)": (80, 212),
+        "var_frcnn\n(our method)": (80, 212),
     }
 
     fig, axes = plt.subplots(1, 6, figsize=(20, 4))

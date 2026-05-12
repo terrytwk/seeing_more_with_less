@@ -147,18 +147,17 @@ Output:
 outputs/fixations/coco_val2017/gradient/
 ```
 
-### DETR
+### Faster R-CNN
 
 ```bash
-python fixation/detr/predict_fixations.py \
-    --path data/coco/val2017 \
-    --model_path facebook/detr-resnet-101
+python fixation/faster_rcnn/predict_fixations.py \
+    --path data/coco/val2017
 ```
 
 Output:
 
 ```text
-outputs/fixations/coco_val2017/detr/
+outputs/fixations/coco_val2017/frcnn/
 ```
 
 ### DeepGaze IIE
@@ -249,7 +248,7 @@ python sampling_schemes/filter_image.py \
     --index 1
 ```
 
-### DETR Fixation
+### Faster R-CNN Fixation
 
 ```bash
 python sampling_schemes/filter_image.py \
@@ -257,8 +256,8 @@ python sampling_schemes/filter_image.py \
     --fov_index 1 \
     --type var \
     --path data/coco/val2017 \
-    --outfolder outputs/filtered/coco_val2017/var_detr \
-    --fixation_json_root outputs/fixations/coco_val2017/detr \
+    --outfolder outputs/filtered/coco_val2017/var_frcnn \
+    --fixation_json_root outputs/fixations/coco_val2017/frcnn \
     --fixation_json_only \
     --batchsize 9999 \
     --index 1
@@ -327,7 +326,7 @@ python inference/vilt/run_vqa.py \
 
 ## 5. End-to-End Pipeline
 
-Runs fixation generation, filtering, DETR inference, ViLT inference, and batch-level reporting for center/random/gradient/DETR/DeepGaze/constant variants.
+Runs fixation generation, filtering, DETR inference, and batch-level reporting for center/random/gradient/Faster R-CNN/DeepGaze/constant variants. Add `--skip_vqa` to skip ViLT inference (~2× faster). DeepGaze is skipped automatically if `deepgaze_pytorch` is not installed.
 
 ```bash
 python run_pipeline.py \

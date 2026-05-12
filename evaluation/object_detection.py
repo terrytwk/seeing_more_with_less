@@ -72,7 +72,10 @@ class ObjectDetectionEvaluation:
                 print(f"  {row['variant']:<22} {'-':>10}  {'0':>12}")
 
     def to_json(self):
-        return {
-            variant: {"n_detections": len(self.predictions[variant])}
-            for variant in self.variants
-        }
+        result = {}
+        for row in self.summary_rows():
+            entry = {"n_detections": row["detections"]}
+            if row["map"] is not None:
+                entry["map"] = row["map"]
+            result[row["variant"]] = entry
+        return result

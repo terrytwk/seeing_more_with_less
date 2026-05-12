@@ -24,7 +24,7 @@ def resolve_device(device):
 
 
 class DETRRunner:
-    def __init__(self, model_path, device="auto", threshold=0.5):
+    def __init__(self, model_path, device="auto", threshold=0.0):
         self.device = resolve_device(device)
         model_path = resolve_pretrained_reference(
             model_path,

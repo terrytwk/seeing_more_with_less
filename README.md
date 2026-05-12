@@ -596,6 +596,17 @@ python run_pipeline.py \
     --batch_size 10
 ```
 
+To run detection only (skips ViLT — roughly 2× faster per batch):
+
+```bash
+python run_pipeline.py \
+    --images data/coco/val2017 \
+    --annotations data/coco/annotations/instances_val2017.json \
+    --detr_model facebook/detr-resnet-101 \
+    --batch_size 10 \
+    --skip_vqa
+```
+
 Results are printed after each batch and accumulated in `outputs/results/coco_val2017/partial_results.json`. The variants compared are:
 
 | Variant | Description |
@@ -603,7 +614,7 @@ Results are printed after each batch and accumulated in `outputs/results/coco_va
 | `var_center` | Foveated, fixation at image center (paper baseline) |
 | `var_random` | Foveated, random fixation point |
 | `var_gradient` | Foveated, fixation at peak gradient magnitude |
-| `var_detr` | Foveated, fixation at centroid of top DETR detection |
+| `var_frcnn` | Foveated, fixation at centroid of top Faster R-CNN detection |
 | `var_deepgaze` | Foveated, fixation at top DeepGaze IIE saliency location |
 | `const` | Uniform sampling, no foveal effect (paper baseline) |
 

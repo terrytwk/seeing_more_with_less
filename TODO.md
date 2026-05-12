@@ -2,8 +2,8 @@
 
 ## Fix foveation blackout artifacts
 
-- [ ] Handle interpolation NaNs in `sampling_schemes/filter_image.py` after `scipy.interpolate.griddata(...)` to prevent black rounded corner artifacts.
-- [ ] Add a fallback interpolation pass (for example, fill NaN pixels with `nearest`) when `cubic` leaves gaps.
+- [x] Handle interpolation NaNs in `sampling_schemes/filter_image.py` after `scipy.interpolate.griddata(...)` to prevent black rounded corner artifacts.
+- [x] Add a fallback interpolation pass (fill NaN pixels with `nearest`) when linear interpolation leaves gaps. *(Switched from `cubic` to `linear` + nearest fallback — see CHANGES.md §10.)*
 - [ ] Add a small debug print or counter for NaN pixel count per image to verify when/where this failure mode appears.
 
 ## Improve behavior when fixation shifts far from center

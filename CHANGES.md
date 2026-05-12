@@ -222,3 +222,54 @@ The docs now include:
 - external fixation JSON usage in `filter_image.py`
 - the `data/` vs. `outputs/` storage convention
 - reproduction commands for the non-Francis additions listed above
+
+---
+
+## 9. Faster R-CNN Fixation Selection (`var_frcnn`)
+
+**Modified:** `run_pipeline.py`, `fixation/faster_rcnn/predict_fixations.py`
+
+The original pipeline used DETR for both fixation-point selection (`var_detr`) and downstream object-detection evaluation, creating a circular dependency: DETR naturally performs better when it fixates on objects it already detected.
+
+Replaced DETR fixation selection with a separate Faster R-CNN model (`torchvision` pretrained ResNet-50 FPN). The evaluation model remains `facebook/detr-resnet-101`, applied to all filtered outputs with no model overlap.
+
+The variant was renamed from `var_detr` to `var_frcnn` throughout the codebase.
+
+---
+
+## 10. Interpolation Fix: Cubic → Linear + Nearest Fallback
+
+**Modified:** `sampling_schemes/filter_image.py`
+
+Replaced `scipy.interpolate.griddata(..., method='cubic')` with `method='linear'`, followed by a nearest-neighbor fill for any pixels outside the convex hull of sampled points (where linear returns NaN).
+
+Effects:
+- **10–20× faster filtering** — cubic (Clough-Tocher) was the main runtime bottleneck.
+- **Matches paper description** — the paper describes "bilinear interpolation" for image reconstruction.
+- **Eliminates black boundary artifacts** — NaN pixels that previously mapped to black are now filled with the nearest sampled value, consistent with the fix recommended in `IDEA.md`.
+
+---
+
+## 11. DETR Detection Threshold Fix
+
+**Modified:** `inference/detr/detr_runner.py`
+
+Changed the default confidence threshold from `0.5` to `0.0`. COCO mAP (`mAP@.5:.95`) is computed by sweeping thresholds internally via `COCOeval`; filtering predictions before evaluation suppresses the precision-recall curve and systematically underestimates mAP. With threshold `0.0`, all 100 DETR proposals per image are passed to COCOeval.
+
+---
+
+## 12. Detection mAP Persisted to JSON
+
+**Modified:** `evaluation/object_detection.py`
+
+`ObjectDetectionEvaluation.to_json()` previously saved only `n_detections` per variant. It now also saves `map` (mAP@.5:.95) so results are fully captured in `partial_results.json` without requiring re-evaluation.
+
+---
+
+## 13. `--skip_vqa` Flag and Optional DeepGaze
+
+**Modified:** `run_pipeline.py`
+
+Added `--skip_vqa` flag. When set, ViLT is not loaded and VQA inference is skipped entirely, roughly halving per-batch inference time for detection-only runs.
+
+DeepGaze is now loaded with a graceful fallback: if `deepgaze_pytorch` is not installed, `var_deepgaze` is silently dropped from the variant list rather than crashing the pipeline.

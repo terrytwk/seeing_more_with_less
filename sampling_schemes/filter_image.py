@@ -133,7 +133,13 @@ def filter_image(img):
     var_indn[calc_pts[:, 0], calc_pts[:, 1]] = False
     new_var_y_x = np.transpose(np.nonzero(var_indn))
     for channel in range(3):
-        out_img[:, :, channel][var_indn] = scipy.interpolate.griddata(calc_pts, out_img[:, :, channel][calc_pts[:, 0], calc_pts[:, 1]], new_var_y_x, method='cubic')
+        src_vals = out_img[:, :, channel][calc_pts[:, 0], calc_pts[:, 1]]
+        interp = scipy.interpolate.griddata(calc_pts, src_vals, new_var_y_x, method='linear')
+        nan_mask = np.isnan(interp)
+        if nan_mask.any():
+            interp[nan_mask] = scipy.interpolate.griddata(
+                calc_pts, src_vals, new_var_y_x[nan_mask], method='nearest')
+        out_img[:, :, channel][var_indn] = interp
     out_img[np.where(out_img < 0)] = 0
     out_img[np.where(out_img > 255)] = 255
     # print('Done: ' + str(datetime.now()))
